@@ -135,15 +135,30 @@ export const PLAZAS: { name: string; grid: string }[] = [
   { name: 'Lakeside plaza', grid: 'H21' },
 ];
 
-export const PLACES: { name: string; grid: string; kind: 'building' | 'facility' | 'safety' }[] = [
+export type Place = {
+  name: string;
+  grid: string;
+  kind: 'building' | 'facility' | 'safety';
+  icon?: 'info' | 'toilet' | 'trash' | 'water';
+};
+
+export const PLACES: Place[] = [
   { name: 'The Villa', grid: 'K14', kind: 'building' },
   { name: 'The Barn', grid: 'L19', kind: 'building' },
   { name: 'The Machinehall', grid: 'M19', kind: 'building' },
   { name: 'HQ (Clowns, Helm)', grid: 'K20', kind: 'safety' },
   { name: 'Sanctuary', grid: 'K13', kind: 'safety' },
   { name: 'Threshold (gate)', grid: 'L4', kind: 'building' },
-  { name: 'Infopoint WTF', grid: 'M20', kind: 'facility' },
-  { name: 'Water', grid: 'L21', kind: 'facility' },
+  { name: 'Infopoint WTF', grid: 'M20', kind: 'facility', icon: 'info' },
+  { name: 'Water', grid: 'L21', kind: 'facility', icon: 'water' },
+  { name: 'Toilet G7', grid: 'G7', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet M6', grid: 'M6', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet P8', grid: 'P8', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet M14', grid: 'M14', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet O19', grid: 'O19', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet N21', grid: 'N21', kind: 'facility', icon: 'toilet' },
+  { name: 'Toilet R21', grid: 'R21', kind: 'facility', icon: 'toilet' },
+  { name: 'Trash containers', grid: 'L15', kind: 'facility', icon: 'trash' },
 ];
 
 export const MAP_META = {

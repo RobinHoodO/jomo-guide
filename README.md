@@ -1,39 +1,68 @@
-# Jomo26
+# Jomo Guide 🎲
 
-Jomo26 is an unofficial offline companion for the Borderland 2026 program. It is a small installable PWA for finding a few events worth attending, starring them locally, and feeling good about missing the rest.
+**An open-source gift to the Borderland community.**
 
-Made by a burner, not by Borderland. No accounts, no backend, no tracking; favorites live in `localStorage` on the device.
+An unofficial, offline-first companion app for **The Borderland 2026** program —
+all 1,215 events from the official [JOMO Guide](https://drive.google.com/drive/folders/1xGbIFoSErGewnilE8NRxGbcP4LWq94ND)
+in your pocket, working with **zero signal on the playa**.
 
-## Use
+**Live app:** https://jomo-guide.vercel.app — open it on your phone, tap
+*Add to Home Screen*, and it works offline from then on. Your starred events
+stay on your phone; nothing is sent anywhere.
 
-Open the deployed site once, then use your browser's "Add to Home Screen" option. After the first load, the app shell and program data are cached for offline use.
+## What it does
 
-## Development
+- **Program** — browse all events by day, time of day, category, and vibe
+  (kid-friendly / sober / queer-inclusive / sex-positive / adults-only), with
+  warnings always visible. Family mode one tap away.
+- **Serendipity** — one good maybe at a time. Reshuffle the dice instead of
+  doomscrolling 1,215 things.
+- **Now / Next** — what's happening right now and starting soon.
+- **My Schedule** — star events (recurring ones per-day), see clashes framed
+  the JOMO way: *pick one, skip the rest*. A light day is a spacious day 🌾
+- **Map** — the official grid map with event counts per square, plazas,
+  buildings & facilities views, blinking square lookup from any event, and
+  GPS *you-are-here* (works offline — GPS needs no signal).
+- **Info** — the guide's front matter: emergency reference, principles,
+  consent culture, ticks, gate hours, nature rules, trash sorting.
+
+Everything is stored **locally on your phone**. The app checks for program
+updates when online and refreshes itself — your stars always survive updates.
+
+## For the community 🖤
+
+This is a gift, in the spirit of the 11 principles. The official printed
+JOMO Guide (and the artwork this app borrows its soul from) lives here:
+[JOMO Guide 2026 — original files](https://drive.google.com/drive/folders/1xGbIFoSErGewnilE8NRxGbcP4LWq94ND).
+
+**Want to build this out or evolve it — for 2027, for your own burn, for
+something weirder? Let's talk.** Open an issue, fork it, or find Robin on
+the playa. PRs welcome.
+
+## Tech
+
+Vite + React + TypeScript + Tailwind CSS 4 + `vite-plugin-pwa`. No backend,
+no accounts, no tracking. The program is baked in at build time from the
+community spreadsheet.
 
 ```bash
 npm install
-node scripts/build-events.mjs
-npm run dev
+node scripts/build-events.mjs   # refresh events.json from the Google Sheet
+npm run dev                     # http://localhost:5174
+npm run build
 ```
 
-The dev server runs on port `5174`.
+`build-events.mjs` tries the public Google Sheet CSV export, falls back to
+`program-snapshot.csv` when offline, and emits `src/data/events.json` plus
+`data-warnings.txt` for rows that needed cleaning.
 
-## Rebuild Program Data
+## Next year
 
-```bash
-node scripts/build-events.mjs
-```
-
-The script tries the public Google Sheet CSV export from `SPEC.md`, then falls back to `program-snapshot.csv` when offline or unreachable. It emits:
-
-- `src/data/events.json`
-- `public/events.json`
-- `data-warnings.txt`
-
-## Next Year
-
-For 2027, edit the config block at the top of `scripts/build-events.mjs`: update the event year, Sheet CSV URL, and `dayToDate` map. If the Sheet column names change, update the `columns` map in the same block.
+Everything year-specific lives in the config block at the top of
+`scripts/build-events.mjs` (event year, Sheet CSV URL, `dayToDate` map,
+column names) plus the map assets in `public/`. Swap those, rebuild, done.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT — see [LICENSE](LICENSE). Unofficial companion, made by a burner.
+Not affiliated with The Borderland organisation.

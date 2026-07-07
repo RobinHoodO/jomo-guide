@@ -22,7 +22,7 @@ export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid }: No
         <p className="section-kicker text-cream">Now / Next</p>
         <h2 className="display-heading mt-0.5 text-base">The current little river</h2>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <NowNextColumn
           title="Happening now"
           events={happening}
@@ -60,7 +60,7 @@ function NowNextColumn({
   onSelectGrid: (grid: string) => void;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <h3 className="text-[11px] font-black text-yellow">{title}</h3>
       {events.length ? (
         <div className="space-y-2">

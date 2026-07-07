@@ -49,9 +49,19 @@ export default function App() {
   };
 
   return (
-    <main className="min-h-screen bg-navy text-cream">
-      <div className="mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
-        <header className="mb-5 space-y-3">
+    <main className="relative min-h-screen overflow-hidden bg-navy text-cream">
+      <div className="ambient-blobs" aria-hidden="true">
+        <div className="ambient-blob ambient-blob-1" />
+        <div className="ambient-blob ambient-blob-2" />
+        <div className="ambient-blob ambient-blob-3" />
+        <div className="ambient-blob ambient-blob-4" />
+        <div className="ambient-blob ambient-blob-5" />
+        <div className="ambient-blob ambient-blob-6" />
+        <div className="ambient-blob ambient-blob-7" />
+        <div className="ambient-blob ambient-blob-8" />
+      </div>
+      <div className="relative z-10 mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
+        <header className="guide-header mb-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="section-kicker text-cream">Borderland 2026</p>
@@ -125,7 +135,7 @@ export default function App() {
 
         {tab === 'info' ? <InfoTab /> : null}
 
-        <footer className="mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
+        <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
           Unofficial companion, made by a burner. Works offline after first load; your stars stay on this phone.{' '}
           <a
             href="https://github.com/RobinHoodO/jomo-guide"

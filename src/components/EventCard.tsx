@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { FLAG_FILTERS, WARNING_FLAGS, type EventItem, formatTime, getRecurringSiblings } from '../lib/events';
+import { useState, type CSSProperties } from 'react';
+import {
+  CATEGORY_COLORS,
+  FLAG_FILTERS,
+  WARNING_FLAGS,
+  type EventItem,
+  formatTime,
+  getRecurringSiblings
+} from '../lib/events';
 
 type EventCardProps = {
   event: EventItem;
@@ -71,12 +78,17 @@ export function EventCard({
   const recurringSiblings = getRecurringSiblings(event);
   const [isExpanded, setIsExpanded] = useState(false);
   const siblingFavorite = isOccurrenceFavorite || ((id: string) => id === event.id && isFavorite);
+  const categoryColor = CATEGORY_COLORS[event.category] || 'var(--pink)';
+  const cardStyle = { '--category-color': categoryColor } as CSSProperties;
 
   return (
-    <article className={`event-card ${muted ? 'opacity-55 grayscale' : ''}`}>
-      <div className="flex items-start gap-2">
+    <article
+      className={`event-card ${isExpanded ? 'is-expanded' : 'is-collapsed'} ${muted ? 'opacity-55 grayscale' : ''}`}
+      style={cardStyle}
+    >
+      <div className="flex items-start gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] leading-4 text-[var(--muted-indigo)]">
+          <div className="event-meta-row">
             <span className="time-badge">
               {formatTime(event)}
             </span>
@@ -95,16 +107,19 @@ export function EventCard({
                 {event.location.grid}
               </button>
             ) : null}
-            <span className="truncate">{event.category}</span>
+            <span className="category-label truncate">
+              <span aria-hidden="true" />
+              {event.category}
+            </span>
           </div>
           <button
             type="button"
-            className="min-h-6 w-full rounded-md text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/30"
+            className="event-title-button"
             onClick={() => setIsExpanded((value) => !value)}
             aria-expanded={isExpanded}
             title={compact ? 'Peek' : 'Open the tiny portal'}
           >
-            <h3 className="mt-0.5 truncate text-sm font-semibold leading-5 text-indigo-brand">{event.title}</h3>
+            <h3 className="truncate text-sm font-semibold leading-5 text-indigo-brand">{event.title}</h3>
           </button>
         </div>
         <button
@@ -119,17 +134,17 @@ export function EventCard({
       </div>
 
       {isExpanded ? (
-        <div className="mt-2 border-t border-indigo-brand/15 pt-2">
+        <div className="event-expanded">
           <button
             type="button"
-            className="min-h-10 rounded-md text-xs font-semibold text-pink transition-colors duration-200 hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/30"
+            className="event-collapse-button"
             onClick={() => setIsExpanded(false)}
           >
             {compact ? 'Peek' : 'Open the tiny portal'}
             <span className="ml-1 text-[var(--muted-indigo)]">-</span>
           </button>
 
-          {event.host ? <p className="mt-2 text-sm text-[var(--muted-indigo)]">{event.host}</p> : null}
+          {event.host ? <p className="event-host">{event.host}</p> : null}
 
           {warnings.length || softFlags.length ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -172,10 +187,10 @@ export function EventCard({
             </div>
           ) : null}
 
-          <div className="mt-2 space-y-2 text-sm leading-6 text-indigo-brand">
+          <div className="event-detail">
             {event.location.prose || event.location.raw ? (
               <p>
-                <span className="text-[var(--muted-indigo)]">Where: </span>
+                <span>Where</span>
                 {event.location.prose || event.location.raw}
               </p>
             ) : null}

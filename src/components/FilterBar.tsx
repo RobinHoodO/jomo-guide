@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
 import {
   CATEGORIES,
+  CATEGORY_COLORS,
   FLAG_FILTERS,
   PROGRAM_DAYS,
   TIME_WINDOWS,
@@ -40,7 +42,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
   };
 
   return (
-    <section className="sticky top-0 z-20 -mx-4 bg-navy/95 px-4 py-2.5 backdrop-blur">
+    <section className="glass sticky top-0 z-20 -mx-4 px-4 py-2.5">
       <label className="sr-only" htmlFor="program-search">
         Search program
       </label>
@@ -111,9 +113,11 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
           <button
             type="button"
             key={category}
-            className={`chip ${filters.categories.includes(category) ? 'is-active' : ''}`}
+            className={`chip category-chip ${filters.categories.includes(category) ? 'is-active' : ''}`}
+            style={{ '--category-color': CATEGORY_COLORS[category] || 'var(--pink)' } as CSSProperties}
             onClick={() => toggleCategory(category)}
           >
+            <span aria-hidden="true" />
             {category}
           </button>
         ))}

@@ -76,6 +76,21 @@ export const EVENTS = eventsJson as EventItem[];
 export const PROGRAM_DAYS = Array.from(new Set(EVENTS.map((event) => event.day)));
 export const CATEGORIES = Array.from(new Set(EVENTS.map((event) => event.category))).sort();
 
+export const CATEGORY_COLORS: Record<string, string> = {
+  'Art/Installation': '#45B5AA',
+  'Food/Drinks': '#5B8FD9',
+  'Care/Support/Pampering': '#F291B2',
+  'Music/Performance/Show': '#232D5C',
+  'Games/Play': '#7EC4E8',
+  'Party/Gathering': '#C93A56',
+  'Yoga/Movement/Bodywork': '#A6C544',
+  'Workshop/Class': '#4C9F4A',
+  'Weird shit/Other': '#8F5BB8',
+  'Crafting/Pimping/Arting': '#E88A2E',
+  'Ritual/Ceremony': '#E25B3C',
+  Dating: '#F291B2'
+};
+
 function recurrenceKey(event: EventItem) {
   return `${event.title.trim().toLowerCase()}|${event.host.trim().toLowerCase()}`;
 }
@@ -200,14 +215,11 @@ export const MAP_EVENTS: MapEvent[] = EVENTS.flatMap((event) => {
 
 export const FREE_FLOATING_EVENT_COUNT = EVENTS.length - MAP_EVENTS.length;
 
-const mapColumns = MAP_EVENTS.map((item) => item.grid.columnIndex);
-const mapRows = MAP_EVENTS.map((item) => item.grid.row);
-
 export const GRID_BOUNDS = {
-  minColumnIndex: Math.min(...mapColumns),
-  maxColumnIndex: Math.max(...mapColumns),
-  minRow: Math.min(...mapRows),
-  maxRow: Math.max(...mapRows)
+  minColumnIndex: 1,
+  maxColumnIndex: 26,
+  minRow: 1,
+  maxRow: 26
 };
 
 export const MAP_COLUMNS = Array.from(

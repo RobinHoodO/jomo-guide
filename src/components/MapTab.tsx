@@ -51,19 +51,14 @@ const GRID_WIDTH = MAP_COLUMNS.length * (CELL_SIZE + GAP) - GAP;
 const GRID_HEIGHT = MAP_ROWS.length * (CELL_SIZE + GAP) - GAP;
 const VIEWBOX_WIDTH = LEFT_AXIS + GRID_WIDTH + RIGHT_PAD;
 const VIEWBOX_HEIGHT = TOP_AXIS + GRID_HEIGHT + BOTTOM_PAD;
-const OFFICIAL_MAP_GRID_SIZE = 26;
 
-export const MAP_ART_OFFSET = { x: 0, y: 0 };
-export const MAP_ART_SCALE = { x: 1, y: 1 };
+type MapView = 'events' | 'plazas' | 'places';
 
-const MAP_ART_WIDTH = (GRID_WIDTH * OFFICIAL_MAP_GRID_SIZE * MAP_ART_SCALE.x) / MAP_COLUMNS.length;
-const MAP_ART_HEIGHT = (GRID_HEIGHT * OFFICIAL_MAP_GRID_SIZE * MAP_ART_SCALE.y) / MAP_ROWS.length;
-const MAP_ART_X =
-  LEFT_AXIS -
-  ((GRID_BOUNDS.minColumnIndex - 1) / OFFICIAL_MAP_GRID_SIZE) * MAP_ART_WIDTH +
-  MAP_ART_OFFSET.x;
-const MAP_ART_Y =
-  TOP_AXIS - ((GRID_BOUNDS.minRow - 1) / OFFICIAL_MAP_GRID_SIZE) * MAP_ART_HEIGHT + MAP_ART_OFFSET.y;
+const MAP_VIEWS: Array<{ key: MapView; label: string }> = [
+  { key: 'events', label: 'Events' },
+  { key: 'plazas', label: 'Plazas' },
+  { key: 'places', label: 'Places' }
+];
 
 type LocationState = {
   grid: GridPosition | null;
@@ -115,8 +110,67 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
+function PlaceMarker({ place }: { place: (typeof PLACES)[number] }) {
+  const position = markerPosition(place.grid);
+  if (!position) return null;
+
+  if (place.kind === 'safety') {
+    return (
+      <g>
+        <circle cx={position.x} cy={position.y} r="8" className="map-safety-marker" />
+        <path
+          d={`M${position.x - 3.5} ${position.y}h7M${position.x} ${position.y - 3.5}v7`}
+          className="map-safety-cross"
+        />
+      </g>
+    );
+  }
+
+  if (place.kind === 'facility') {
+    const icon = place.icon || 'info';
+    return (
+      <g className={`map-place-facility is-${icon}`} transform={`translate(${position.x} ${position.y})`}>
+        <circle r="7" className="map-facility-dot" />
+        {icon === 'toilet' ? (
+          <>
+            <circle cx="-1.8" cy="-1.6" r="2.4" className="map-facility-glyph-fill" />
+            <path d="M1.6 -4.2v8.4M1.6 -4.2h2.7v8.4H1.6" className="map-facility-glyph" />
+            <path d="M-4.2 3.4h5.6" className="map-facility-glyph" />
+          </>
+        ) : null}
+        {icon === 'trash' ? (
+          <>
+            <path d="M-3.6 -2.2h7.2M-2.6 -4h5.2M-2.8 -1.2l.5 5.2h4.6l.5-5.2" className="map-facility-glyph" />
+            <path d="M-0.8 -1.1v4.2M1 -1.1v4.2" className="map-facility-glyph-thin" />
+          </>
+        ) : null}
+        {icon === 'water' ? <path d="M0 -4.8C2.5-1.7 3.5.1 3.5 2a3.5 3.5 0 0 1-7 0c0-1.9 1-3.7 3.5-6.8Z" className="map-facility-glyph-fill" /> : null}
+        {icon === 'info' ? (
+          <>
+            <circle cy="-3.3" r="0.9" className="map-facility-glyph-fill" />
+            <path d="M0 -0.8v5" className="map-facility-glyph" />
+          </>
+        ) : null}
+      </g>
+    );
+  }
+
+  return (
+    <rect
+      x={position.x - 5}
+      y={position.y - 5}
+      width="10"
+      height="10"
+      rx="2"
+      transform={`rotate(45 ${position.x} ${position.y})`}
+      className="map-building-marker"
+    />
+  );
+}
+
 export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
+  const [mapView, setMapView] = useState<MapView>('events');
   const [location, setLocation] = useState<LocationState>({
     grid: null,
     isWatching: false,
@@ -125,6 +179,7 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
   const watchIdRef = useRef<number | null>(null);
   const selectedCell = selectedGrid ? MAP_CELLS_BY_CODE.get(selectedGrid) || null : null;
   const userMarker = useMemo(() => (location.grid ? floatingGridPosition(location.grid) : null), [location.grid]);
+  const showEventLayer = mapView === 'events';
 
   useEffect(() => {
     return () => {
@@ -230,6 +285,21 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
           </p>
         ) : null}
 
+        <div className="map-view-toggle" role="tablist" aria-label="Map view">
+          {MAP_VIEWS.map((view) => (
+            <button
+              key={view.key}
+              type="button"
+              role="tab"
+              aria-selected={mapView === view.key}
+              className={mapView === view.key ? 'is-active' : ''}
+              onClick={() => setMapView(view.key)}
+            >
+              {view.label}
+            </button>
+          ))}
+        </div>
+
         <svg
           className="block h-auto w-full"
           viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
@@ -245,10 +315,10 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
           {showMapArt ? (
             <image
               href="/map-official.png"
-              x={MAP_ART_X}
-              y={MAP_ART_Y}
-              width={MAP_ART_WIDTH}
-              height={MAP_ART_HEIGHT}
+              x={LEFT_AXIS}
+              y={TOP_AXIS}
+              width={GRID_WIDTH}
+              height={GRID_HEIGHT}
               preserveAspectRatio="none"
               clipPath="url(#official-map-art-clip)"
               opacity="0.88"
@@ -284,6 +354,17 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
             const rowIndex = MAP_ROWS.indexOf(cell.row);
             const colors = cellColor(cell);
             const isSelected = selectedGrid === cell.code;
+            const fill = showEventLayer ? colors.fill : 'transparent';
+            const stroke = isSelected ? '#E0447E' : showEventLayer ? colors.stroke : 'rgba(242,235,217,0.18)';
+            const fillOpacity = showEventLayer
+              ? showMapArt
+                ? cell.eventCount
+                  ? 0.58
+                  : 0.08
+                : cell.eventCount
+                  ? 1
+                  : 0.45
+              : 0.04;
 
             return (
               <g
@@ -306,13 +387,14 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
                   width={CELL_SIZE}
                   height={CELL_SIZE}
                   rx={cell.eventCount ? 5 : 3}
-                  fill={colors.fill}
-                  stroke={isSelected ? '#E0447E' : colors.stroke}
+                  className={isSelected ? 'map-cell-selection' : undefined}
+                  fill={fill}
+                  stroke={stroke}
                   strokeWidth={isSelected ? 2.2 : 1}
-                  fillOpacity={showMapArt ? (cell.eventCount ? 0.58 : 0.08) : cell.eventCount ? 1 : 0.45}
+                  fillOpacity={fillOpacity}
                   strokeOpacity={showMapArt ? (isSelected ? 1 : 0.58) : 1}
                 />
-                {cell.eventCount ? (
+                {showEventLayer && cell.eventCount ? (
                   <text
                     x={LEFT_AXIS + columnIndex * (CELL_SIZE + GAP) + CELL_SIZE / 2}
                     y={TOP_AXIS + rowIndex * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3.5}
@@ -327,47 +409,23 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
           })}
 
           <g pointerEvents="none">
-            {PLAZAS.map((plaza, index) => {
-              const position = markerPosition(plaza.grid);
-              if (!position) return null;
-              return (
-                <g key={plaza.name}>
-                  <circle cx={position.x} cy={position.y} r="7" className="map-plaza-dot" />
-                  <text x={position.x} y={position.y + 3.2} textAnchor="middle" className="map-plaza-number">
-                    {index + 1}
-                  </text>
-                </g>
-              );
-            })}
+            {mapView === 'plazas'
+              ? PLAZAS.map((plaza, index) => {
+                  const position = markerPosition(plaza.grid);
+                  if (!position) return null;
+                  return (
+                    <g key={plaza.name}>
+                      <circle cx={position.x} cy={position.y} r="8.5" className="map-plaza-dot" />
+                      <text x={position.x} y={position.y + 3.2} textAnchor="middle" className="map-plaza-number">
+                        {index + 1}
+                      </text>
+                    </g>
+                  );
+                })
+              : null}
 
-            {PLACES.map((place) => {
-              const position = markerPosition(place.grid);
-              if (!position) return null;
-              const isSafety = place.kind === 'safety';
-              return (
-                <g key={place.name}>
-                  {isSafety ? (
-                    <>
-                      <circle cx={position.x} cy={position.y} r="8" className="map-safety-marker" />
-                      <path
-                        d={`M${position.x - 3.5} ${position.y}h7M${position.x} ${position.y - 3.5}v7`}
-                        className="map-safety-cross"
-                      />
-                    </>
-                  ) : (
-                    <rect
-                      x={position.x - 5}
-                      y={position.y - 5}
-                      width="10"
-                      height="10"
-                      rx="2"
-                      transform={`rotate(45 ${position.x} ${position.y})`}
-                      className={place.kind === 'facility' ? 'map-facility-marker' : 'map-building-marker'}
-                    />
-                  )}
-                </g>
-              );
-            })}
+            {mapView === 'places' ? PLACES.map((place) => <PlaceMarker key={place.name} place={place} />) : null}
+
             {userMarker ? (
               <g className="map-you-marker" transform={`translate(${userMarker.x} ${userMarker.y})`}>
                 <circle r="7.5" className="map-you-pulse" />
@@ -380,37 +438,61 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
           </g>
         </svg>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-          {MAP_NEIGHBORHOODS.map((neighborhood) => {
-            const colors = neighborhoodColor.get(neighborhood) || NEIGHBORHOOD_COLORS[0];
-            return (
-              <div key={neighborhood} className="legend-item">
-                <span style={{ background: colors.fill, borderColor: colors.stroke }} />
-                <span className="truncate">{neighborhood}</span>
-              </div>
-            );
-          })}
-        </div>
-
         <div className="space-y-2 border-t border-indigo-brand/15 pt-2">
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {PLAZAS.map((plaza, index) => (
-              <div key={plaza.name} className="legend-item">
-                <span className="legend-plaza">{index + 1}</span>
-                <span className="truncate">{plaza.name}</span>
-              </div>
-            ))}
+          {mapView === 'events' ? (
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {MAP_NEIGHBORHOODS.map((neighborhood) => {
+                const colors = neighborhoodColor.get(neighborhood) || NEIGHBORHOOD_COLORS[0];
+                return (
+                  <div key={neighborhood} className="legend-item">
+                    <span style={{ background: colors.fill, borderColor: colors.stroke }} />
+                    <span className="truncate">{neighborhood}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {mapView === 'plazas' ? (
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {PLAZAS.map((plaza, index) => (
+                <div key={plaza.name} className="legend-item">
+                  <span className="legend-plaza">{index + 1}</span>
+                  <span className="truncate">{plaza.name}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {mapView === 'places' ? (
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {PLACES.map((place) => (
+                <div key={place.name} className="legend-item">
+                  <span
+                    className={`legend-place ${place.kind === 'safety' ? 'is-safety' : ''} ${
+                      place.kind === 'facility' ? `is-${place.icon || 'info'}` : ''
+                    }`}
+                  />
+                  <span className="truncate">{place.name}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-1.5">
+            {mapView === 'places' ? (
+              <>
+                <span className="legend-type">Buildings</span>
+                <span className="legend-type is-safety">Safety</span>
+                <span className="legend-type is-facility">Facilities</span>
+              </>
+            ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {PLACES.map((place) => (
-              <div key={place.name} className="legend-item">
-                <span className={`legend-place ${place.kind === 'safety' ? 'is-safety' : ''}`} />
-                <span className="truncate">{place.name}</span>
-              </div>
-            ))}
-          </div>
+
           <p className="text-xs leading-5 text-[var(--muted-indigo)]">{MAP_META.note}</p>
-          <p className="text-xs font-bold leading-5 text-pink">{MAP_META.consentDropboxes}</p>
+          {mapView === 'places' ? (
+            <p className="text-xs font-bold leading-5 text-pink">{MAP_META.consentDropboxes}</p>
+          ) : null}
         </div>
       </section>
 
