@@ -9,6 +9,7 @@ import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
 
 type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info';
+type CampSelection = { id: string; token: number };
 
 function TabIcon({ name }: { name: Tab }) {
   const paths = {
@@ -38,6 +39,7 @@ function TabIcon({ name }: { name: Tab }) {
 export default function App() {
   const [tab, setTab] = useState<Tab>('program');
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
+  const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
   const selectGrid = (grid: string) => {
@@ -48,6 +50,11 @@ export default function App() {
     window.requestAnimationFrame(() => {
       document.getElementById('map-tab')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  };
+
+  const selectCamp = (campId: string) => {
+    setSelectedCamp((current) => ({ id: campId, token: (current?.token ?? 0) + 1 }));
+    setTab('camps');
   };
 
   return (
@@ -126,7 +133,12 @@ export default function App() {
         </header>
 
         {tab === 'program' ? (
-          <Program isFavorite={isFavorite} toggleFavorite={toggleFavorite} onSelectGrid={selectGrid} />
+          <Program
+            isFavorite={isFavorite}
+            toggleFavorite={toggleFavorite}
+            onSelectGrid={selectGrid}
+            onSelectCamp={selectCamp}
+          />
         ) : null}
 
         {tab === 'schedule' ? (
@@ -135,6 +147,7 @@ export default function App() {
             isFavorite={isFavorite}
             toggleFavorite={toggleFavorite}
             onSelectGrid={selectGrid}
+            onSelectCamp={selectCamp}
           />
         ) : null}
 
@@ -142,12 +155,21 @@ export default function App() {
           <MapTab
             selectedGrid={selectedGrid}
             onSelectGrid={selectGrid}
+            onSelectCamp={selectCamp}
             isFavorite={isFavorite}
             toggleFavorite={toggleFavorite}
           />
         ) : null}
 
-        {tab === 'camps' ? <Destinations onSelectGrid={selectGrid} /> : null}
+        {tab === 'camps' ? (
+          <Destinations
+            selectedCamp={selectedCamp}
+            isFavorite={isFavorite}
+            toggleFavorite={toggleFavorite}
+            onSelectGrid={selectGrid}
+            onSelectCamp={selectCamp}
+          />
+        ) : null}
 
         {tab === 'info' ? <InfoTab /> : null}
 

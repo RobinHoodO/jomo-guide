@@ -1,4 +1,14 @@
-import { EMERGENCY, INFO_SECTIONS } from '../data/info-content';
+import type { CSSProperties } from 'react';
+import {
+  EMERGENCY,
+  INFO_SECTIONS,
+  SIGN_CAMP_CATEGORIES,
+  SIGN_CAMP_ICONS,
+  SIGN_EVENT_CATEGORIES,
+  SIGN_EVENT_ICONS
+} from '../data/info-content';
+import { DEST_CATEGORY_COLORS } from '../lib/destinations';
+import { CATEGORY_COLORS } from '../lib/events';
 
 function PhoneIcon() {
   return (
@@ -47,6 +57,64 @@ function linkifyPhones(text: string) {
     ) : (
       part
     )
+  );
+}
+
+function CategoryChip({ category, color }: { category: string; color: string }) {
+  return (
+    <span
+      className="chip category-chip info-category-chip"
+      style={{ '--category-color': color } as CSSProperties}
+    >
+      <span aria-hidden="true" />
+      {category}
+    </span>
+  );
+}
+
+function SignsCategories() {
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted-indigo)]">Events</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SIGN_EVENT_CATEGORIES.map((category) => (
+            <CategoryChip
+              key={category}
+              category={category}
+              color={CATEGORY_COLORS[category] || 'var(--pink)'}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted-indigo)]">
+          Camps/dreams
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {SIGN_CAMP_CATEGORIES.map((category) => (
+            <CategoryChip
+              key={category}
+              category={category}
+              color={DEST_CATEGORY_COLORS[category] || 'var(--pink)'}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SignIconList({ items }: { items: Array<{ icon: string; meaning: string }> }) {
+  return (
+    <div className="grid gap-1.5">
+      {items.map((item) => (
+        <div key={`${item.icon}-${item.meaning}`} className="sign-icon-row">
+          <span aria-hidden="true">{item.icon}</span>
+          <span>{item.meaning}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -142,7 +210,15 @@ export function InfoTab() {
                 {section.details.map((block, index) => (
                   <div key={`${section.id}-${index}`} className="text-sm leading-6 text-indigo-brand">
                     {block.heading ? <h4 className="font-black text-pink">{block.heading}</h4> : null}
-                    <p>{linkifyPhones(block.body)}</p>
+                    {section.id === 'signs' && block.heading === 'Event and camps/dreams categories' ? (
+                      <SignsCategories />
+                    ) : section.id === 'signs' && block.heading === 'Inclusivity icons for events' ? (
+                      <SignIconList items={SIGN_EVENT_ICONS} />
+                    ) : section.id === 'signs' && block.heading === 'Inclusivity icons for camps and dreams' ? (
+                      <SignIconList items={SIGN_CAMP_ICONS} />
+                    ) : block.body ? (
+                      <p>{linkifyPhones(block.body)}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>

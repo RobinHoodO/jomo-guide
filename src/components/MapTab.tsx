@@ -17,6 +17,7 @@ import { MAP_META, PLACES, PLAZAS } from '../data/info-content';
 type MapTabProps = {
   selectedGrid: string | null;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
 };
@@ -51,6 +52,10 @@ const GRID_WIDTH = MAP_COLUMNS.length * (CELL_SIZE + GAP) - GAP;
 const GRID_HEIGHT = MAP_ROWS.length * (CELL_SIZE + GAP) - GAP;
 const VIEWBOX_WIDTH = LEFT_AXIS + GRID_WIDTH + RIGHT_PAD;
 const VIEWBOX_HEIGHT = TOP_AXIS + GRID_HEIGHT + BOTTOM_PAD;
+const ART_OFFSET_X = 0; // Horizontal artwork calibration in SVG units.
+const ART_OFFSET_Y = 0; // Vertical artwork calibration in SVG units.
+const ART_SCALE_X = 1; // Artwork width multiplier.
+const ART_SCALE_Y = 1; // Artwork height multiplier.
 
 type MapView = 'events' | 'plazas' | 'places';
 
@@ -168,7 +173,7 @@ function PlaceMarker({ place }: { place: (typeof PLACES)[number] }) {
   );
 }
 
-export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite }: MapTabProps) {
+export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
   const [mapView, setMapView] = useState<MapView>('events');
   const [location, setLocation] = useState<LocationState>({
@@ -315,39 +320,43 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
           {showMapArt ? (
             <image
               href="/map-official.png"
-              x={LEFT_AXIS}
-              y={TOP_AXIS}
-              width={GRID_WIDTH}
-              height={GRID_HEIGHT}
+              x={LEFT_AXIS + ART_OFFSET_X}
+              y={TOP_AXIS + ART_OFFSET_Y}
+              width={GRID_WIDTH * ART_SCALE_X}
+              height={GRID_HEIGHT * ART_SCALE_Y}
               preserveAspectRatio="none"
               clipPath="url(#official-map-art-clip)"
               opacity="0.88"
             />
           ) : null}
 
-          {MAP_COLUMNS.map((column, index) => (
-            <text
-              key={column}
-              x={LEFT_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2}
-              y="12"
-              textAnchor="middle"
-              className="map-axis"
-            >
-              {column}
-            </text>
-          ))}
+          {!showMapArt ? (
+            <>
+              {MAP_COLUMNS.map((column, index) => (
+                <text
+                  key={column}
+                  x={LEFT_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2}
+                  y="12"
+                  textAnchor="middle"
+                  className="map-axis"
+                >
+                  {column}
+                </text>
+              ))}
 
-          {MAP_ROWS.map((row, index) => (
-            <text
-              key={row}
-              x="17"
-              y={TOP_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3}
-              textAnchor="end"
-              className="map-axis"
-            >
-              {row}
-            </text>
-          ))}
+              {MAP_ROWS.map((row, index) => (
+                <text
+                  key={row}
+                  x="17"
+                  y={TOP_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3}
+                  textAnchor="end"
+                  className="map-axis"
+                >
+                  {row}
+                </text>
+              ))}
+            </>
+          ) : null}
 
           {MAP_CELLS.map((cell) => {
             const columnIndex = MAP_COLUMNS.indexOf(cell.column);
@@ -443,10 +452,12 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
               ? PLAZAS.map((plaza, index) => {
                   const position = markerPosition(plaza.grid);
                   if (!position) return null;
+                  const x = position.x + (plaza.nudge?.x ?? 0);
+                  const y = position.y + (plaza.nudge?.y ?? 0);
                   return (
                     <g key={plaza.name}>
-                      <circle cx={position.x} cy={position.y} r="8.5" className="map-plaza-dot" />
-                      <text x={position.x} y={position.y + 3.2} textAnchor="middle" className="map-plaza-number">
+                      <circle cx={x} cy={y} r="8.5" className="map-plaza-dot" />
+                      <text x={x} y={y + 3.2} textAnchor="middle" className="map-plaza-number">
                         {index + 1}
                       </text>
                     </g>
@@ -546,6 +557,7 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
                 isOccurrenceFavorite={isFavorite}
                 onToggleFavorite={toggleFavorite}
                 onSelectGrid={onSelectGrid}
+                onSelectCamp={onSelectCamp}
                 compact
               />
             ))}

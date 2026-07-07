@@ -131,7 +131,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
             className={`chip ${filters.flags.includes(flag.key) ? 'is-active' : ''}`}
             onClick={() => toggleFlag(flag.key)}
           >
-            {flag.label}
+            {flag.icon} {flag.label}
           </button>
         ))}
       </div>

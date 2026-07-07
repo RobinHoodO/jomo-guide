@@ -9,6 +9,7 @@ type ProgramProps = {
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
 };
 
 const EMPTY_FILTERS: Filters = {
@@ -28,7 +29,7 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
-export function Program({ isFavorite, toggleFavorite, onSelectGrid }: ProgramProps) {
+export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: ProgramProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const visibleEvents = useMemo(() => filterEvents(EVENTS, filters), [filters]);
   const grouped = useMemo(() => groupByDay(visibleEvents), [visibleEvents]);
@@ -41,12 +42,14 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid }: ProgramPro
         isFavorite={isFavorite}
         toggleFavorite={toggleFavorite}
         onSelectGrid={onSelectGrid}
+        onSelectCamp={onSelectCamp}
       />
       <NowNext
         events={visibleEvents}
         isFavorite={isFavorite}
         toggleFavorite={toggleFavorite}
         onSelectGrid={onSelectGrid}
+        onSelectCamp={onSelectCamp}
       />
 
       <section className="space-y-3">
@@ -73,6 +76,7 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid }: ProgramPro
                     isOccurrenceFavorite={isFavorite}
                     onToggleFavorite={toggleFavorite}
                     onSelectGrid={onSelectGrid}
+                    onSelectCamp={onSelectCamp}
                   />
                 ))}
               </div>

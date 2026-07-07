@@ -8,7 +8,7 @@ export type InfoSection = {
   title: string;
   emoji: string; // section accent, rendered as decorative
   summary: string; // always-visible one-liner (verbatim guide lead line)
-  details: { heading?: string; body: string }[]; // full guide text, behind a toggle
+  details: { heading?: string; body?: string }[]; // full guide text, behind a toggle
 };
 
 export const EMERGENCY = {
@@ -47,10 +47,10 @@ export const INFO_SECTIONS: InfoSection[] = [
     emoji: '🚩',
     summary: 'Event and camps/dreams categories, how locations are written, and the inclusivity icons.',
     details: [
-      { heading: 'Event and camps/dreams categories', body: 'Art/Installation · Food/Drinks · Care/Support · Music/Show · Games/Play · Party/Gathering · Movement/Bodywork · Workshop/Class · Weird shit/Other · Crafting/Arting · Ritual/Ceremony.' },
+      { heading: 'Event and camps/dreams categories' },
       { heading: 'Location', body: 'This year, you\'ll find both the camps\' own clues and extra help from our placement map—listed as: Neighborhood + grid square letter and number. Check out the map!' },
-      { heading: 'Inclusivity icons for events', body: 'Little monkey = Kids friendly. Big monkey = Adults only friendly. Sex positive event — likely to welcome and hold space for physical intimacy and acts of sexual expressions. It can also look like a lecture, sharing circle or a gathering where topics of body, gender, sexuality. Sober event — for cases when it is important for the type of event and/or facilitator. Sensory content — loud noise, flashy lights, wild tastes etc. Triggering themes — violence, sexual abuse, historical- or cultural traumatic incidents etc. Queer-inclusive — host took real steps to make queer folks feel safe and welcome. Queer-focused — event only for people who identify as queer.' },
-      { heading: 'Inclusivity icons for camps and dreams', body: 'How many people this camp/dream can fit. Sober camp/dream. Kid friendly. Adults only. Body-positive — nudity, touch, explicit discussions are welcome. Sex positive — sexual activity is welcome, not necessarily at all times. Designed for queer inclusion — took real steps to make queer folks feel safe. Pet friendly zone — if not marked, we consider it\'s a pet-free zone. Triggering themes — violence, sexual abuse, traumatic incidents etc. Sensory content — can overstimulate with loud noise, flashy lights, etc.' },
+      { heading: 'Inclusivity icons for events' },
+      { heading: 'Inclusivity icons for camps and dreams' },
     ],
   },
   {
@@ -201,21 +201,81 @@ export const INFO_SECTIONS: InfoSection[] = [
   },
 ];
 
+export const SIGN_EVENT_CATEGORIES = [
+  'Art/Installation',
+  'Food/Drinks',
+  'Care/Support/Pampering',
+  'Music/Performance/Show',
+  'Games/Play',
+  'Party/Gathering',
+  'Yoga/Movement/Bodywork',
+  'Workshop/Class',
+  'Weird shit/Other',
+  'Crafting/Pimping/Arting',
+  'Ritual/Ceremony',
+  'Dating',
+];
+
+export const SIGN_CAMP_CATEGORIES = [
+  'Art/Installation',
+  'Food/Drinks',
+  'Pampering/Care',
+  'Music/Show',
+  'Games/Play',
+  'Party/Gathering',
+  'Movement/Bodywork',
+  'Workshop/Class',
+  'Weird shit/Other',
+  'Crafting/Arting',
+  'Ritual/Ceremony',
+];
+
+export const SIGN_EVENT_ICONS = [
+  { icon: '🐒', meaning: 'Kids friendly' },
+  { icon: '🦍', meaning: 'Adults only' },
+  { icon: '🖤', meaning: 'Sex positive' },
+  { icon: '😇', meaning: 'Sober' },
+  { icon: '💥', meaning: 'Sensory content' },
+  { icon: '🚨', meaning: 'Triggering themes' },
+  { icon: '🌈', meaning: 'Queer-inclusive' },
+  { icon: '🌈🌈', meaning: 'Queer-focused' },
+];
+
+export const SIGN_CAMP_ICONS = [
+  { icon: '👥', meaning: 'capacity' },
+  { icon: '😇', meaning: 'Sober' },
+  { icon: '🐒', meaning: 'Kid friendly' },
+  { icon: '🦍', meaning: 'Adults only' },
+  { icon: '🍑', meaning: 'Body-positive' },
+  { icon: '🖤', meaning: 'Sex positive' },
+  { icon: '🌈', meaning: 'Queer inclusion' },
+  { icon: '🐩', meaning: 'Pet-friendly' },
+  { icon: '🚨', meaning: 'Triggering themes' },
+  { icon: '💥', meaning: 'Sensory content' },
+];
+
+export type Plaza = {
+  name: string;
+  grid: string;
+  // Measured offsets so app markers sit exactly on the artwork's printed bubbles.
+  nudge?: { x: number; y: number };
+};
+
 // Official map anchors (approx grid positions read off the guide's map pages).
-export const PLAZAS: { name: string; grid: string }[] = [
-  { name: 'Pamper plaza', grid: 'Q6' },
-  { name: 'Penta plaza', grid: 'M11' },
-  { name: 'Bayt-al-Noor plaza', grid: 'O10' },
-  { name: 'Snacktown plaza', grid: 'P10' },
-  { name: 'Lowlands plaza', grid: 'Q12' },
-  { name: 'Fire plaza', grid: 'T17' },
-  { name: 'Earth plaza', grid: 'S19' },
-  { name: 'Water plaza', grid: 'Q18' },
-  { name: 'Cuddle plaza', grid: 'Q21' },
-  { name: 'Sunset plaza', grid: 'O22' },
-  { name: 'Shameless plaza', grid: 'N21' },
-  { name: "Captain's plaza", grid: 'K23' },
-  { name: 'Lakeside plaza', grid: 'H21' },
+export const PLAZAS: Plaza[] = [
+  { name: 'Pamper plaza', grid: 'Q6', nudge: { x: -18, y: 8 } },
+  { name: 'Penta plaza', grid: 'M11', nudge: { x: 12, y: 9.5 } },
+  { name: 'Bayt-al-Noor plaza', grid: 'O10', nudge: { x: 21, y: 7 } },
+  { name: 'Snacktown plaza', grid: 'P10', nudge: { x: 26.5, y: 7 } },
+  { name: 'Lowlands plaza', grid: 'Q12', nudge: { x: 17, y: -1.5 } },
+  { name: 'Fire plaza', grid: 'T17', nudge: { x: -11.5, y: 3 } },
+  { name: 'Earth plaza', grid: 'S19', nudge: { x: 24, y: 0.5 } },
+  { name: 'Water plaza', grid: 'Q18', nudge: { x: 8, y: 7 } },
+  { name: 'Cuddle plaza', grid: 'Q21', nudge: { x: 25.5, y: 8.5 } },
+  { name: 'Sunset plaza', grid: 'O22', nudge: { x: -1, y: 7 } },
+  { name: 'Shameless plaza', grid: 'N21', nudge: { x: 18, y: -10.5 } },
+  { name: "Captain's plaza", grid: 'K23', nudge: { x: 7.5, y: -6.5 } },
+  { name: 'Lakeside plaza', grid: 'H21', nudge: { x: -8, y: 7 } },
 ];
 
 export type Place = {

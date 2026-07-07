@@ -477,6 +477,18 @@ main section > div > h3 {
   color: var(--cream);
 }
 
+.camp-chip {
+  @apply inline-flex min-h-8 items-center rounded-full px-2 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  background: rgba(245, 194, 66, 0.42);
+  color: var(--indigo);
+  border: 1.5px solid rgba(224, 68, 126, 0.2);
+}
+
+.camp-chip:hover {
+  background: var(--pink);
+  color: var(--cream);
+}
+
 .grid-badge {
   @apply shrink-0 px-1.5 py-0.5 text-[10px] font-black leading-4 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: var(--yellow);
@@ -766,6 +778,21 @@ main section > div > h3 {
 .legend-type.is-facility {
   background: rgba(87, 166, 75, 0.16);
   color: #356F2B;
+}
+
+.info-category-chip {
+  white-space: normal;
+}
+
+.sign-icon-row {
+  @apply flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold leading-4;
+  background: rgba(52, 55, 158, 0.08);
+  color: var(--indigo);
+}
+
+.sign-icon-row span:first-child {
+  @apply grid h-7 min-w-7 place-items-center rounded-full text-base leading-none;
+  background: rgba(242, 235, 217, 0.78);
 }
 
 @keyframes selected-cell-blink {

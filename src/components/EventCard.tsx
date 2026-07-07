@@ -7,6 +7,9 @@ import {
   formatTime,
   getRecurringSiblings
 } from '../lib/events';
+import { campForEvent } from '../lib/links';
+
+type EventCardHeadingLevel = 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
 type EventCardProps = {
   event: EventItem;
@@ -14,9 +17,11 @@ type EventCardProps = {
   isOccurrenceFavorite?: (id: string) => boolean;
   onToggleFavorite: (id: string) => void;
   onSelectGrid?: (grid: string) => void;
+  onSelectCamp?: (campId: string) => void;
   compact?: boolean;
   muted?: boolean;
   note?: string;
+  headingLevel?: EventCardHeadingLevel;
 };
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -68,9 +73,11 @@ export function EventCard({
   isOccurrenceFavorite,
   onToggleFavorite,
   onSelectGrid,
+  onSelectCamp,
   compact = false,
   muted = false,
-  note
+  note,
+  headingLevel = 'h3'
 }: EventCardProps) {
   const visibleFlags = FLAG_FILTERS.filter(({ key }) => event.flags[key]);
   const warnings = visibleFlags.filter(({ key }) => WARNING_FLAGS.includes(key));
@@ -80,6 +87,8 @@ export function EventCard({
   const siblingFavorite = isOccurrenceFavorite || ((id: string) => id === event.id && isFavorite);
   const categoryColor = CATEGORY_COLORS[event.category] || 'var(--pink)';
   const cardStyle = { '--category-color': categoryColor } as CSSProperties;
+  const hostCamp = onSelectCamp ? campForEvent(event) : null;
+  const TitleHeading = headingLevel;
 
   return (
     <article
@@ -119,7 +128,9 @@ export function EventCard({
             aria-expanded={isExpanded}
             title={compact ? 'Peek' : 'Open the tiny portal'}
           >
-            <h3 className="truncate text-sm font-semibold leading-5 text-indigo-brand">{event.title}</h3>
+            <TitleHeading className="truncate text-sm font-semibold leading-5 text-indigo-brand">
+              {event.title}
+            </TitleHeading>
           </button>
         </div>
         <button
@@ -140,22 +151,37 @@ export function EventCard({
             className="event-collapse-button"
             onClick={() => setIsExpanded(false)}
           >
-            {compact ? 'Peek' : 'Open the tiny portal'}
-            <span className="ml-1 text-[var(--muted-indigo)]">-</span>
+            Close
+            <span className="ml-1 text-[var(--muted-indigo)]">▴</span>
           </button>
 
-          {event.host ? <p className="event-host">{event.host}</p> : null}
+          {event.host ? (
+            <p className="event-host">
+              {hostCamp ? (
+                <button
+                  type="button"
+                  className="camp-chip"
+                  onClick={() => onSelectCamp?.(hostCamp.id)}
+                  title={`Open ${hostCamp.title} in Camps`}
+                >
+                  🏕 {hostCamp.title}
+                </button>
+              ) : (
+                event.host
+              )}
+            </p>
+          ) : null}
 
           {warnings.length || softFlags.length ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {warnings.map((flag) => (
                 <span className="warning-badge" key={flag.key}>
-                  {flag.badge}
+                  {flag.icon} {flag.badge}
                 </span>
               ))}
               {softFlags.map((flag) => (
                 <span className="soft-badge" key={flag.key}>
-                  {flag.badge}
+                  {flag.icon} {flag.badge}
                 </span>
               ))}
             </div>

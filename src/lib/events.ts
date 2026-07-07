@@ -131,14 +131,14 @@ export const TIME_WINDOWS: Array<{ key: TimeWindowKey; label: string; range: str
   { key: 'night', label: 'Night', range: '00-06', start: 0, end: 6 * 60 }
 ];
 
-export const FLAG_FILTERS: Array<{ key: FlagKey; label: string; badge: string }> = [
-  { key: 'kid', label: 'Kid-friendly', badge: 'Kid' },
-  { key: 'sober', label: 'Sober', badge: 'Sober' },
-  { key: 'queer', label: 'Queer-inclusive', badge: 'Queer' },
-  { key: 'sexPositive', label: 'Sex positive', badge: 'Sex+' },
-  { key: 'adult', label: 'Adults only', badge: 'Adult' },
-  { key: 'warnSensory', label: 'Sensory content', badge: 'Sensory' },
-  { key: 'warnTriggering', label: 'Triggering themes', badge: 'Trigger' }
+export const FLAG_FILTERS: Array<{ key: FlagKey; label: string; badge: string; icon: string }> = [
+  { key: 'kid', label: 'Kid-friendly', badge: 'Kid', icon: '🐒' },
+  { key: 'sober', label: 'Sober', badge: 'Sober', icon: '😇' },
+  { key: 'queer', label: 'Queer-inclusive', badge: 'Queer', icon: '🌈' },
+  { key: 'sexPositive', label: 'Sex positive', badge: 'Sex+', icon: '🖤' },
+  { key: 'adult', label: 'Adults only', badge: 'Adult', icon: '🦍' },
+  { key: 'warnSensory', label: 'Sensory content', badge: 'Sensory', icon: '💥' },
+  { key: 'warnTriggering', label: 'Triggering themes', badge: 'Trigger', icon: '🚨' }
 ];
 
 export const WARNING_FLAGS: FlagKey[] = ['warnSensory', 'warnTriggering'];

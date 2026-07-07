@@ -7,6 +7,7 @@ type SerendipityProps = {
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
 };
 
 function DiceIcon() {
@@ -29,7 +30,7 @@ function DiceIcon() {
   );
 }
 
-export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid }: SerendipityProps) {
+export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: SerendipityProps) {
   const now = useMemo(() => getNow(), []);
   const [picked, setPicked] = useState<EventItem | null>(() => pickSerendipity(events, now));
 
@@ -62,6 +63,7 @@ export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid }
           isOccurrenceFavorite={isFavorite}
           onToggleFavorite={toggleFavorite}
           onSelectGrid={onSelectGrid}
+          onSelectCamp={onSelectCamp}
           compact
         />
       ) : (

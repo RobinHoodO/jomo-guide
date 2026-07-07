@@ -12,9 +12,10 @@ type ScheduleProps = {
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
 };
 
-export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid }: ScheduleProps) {
+export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: ScheduleProps) {
   const favoriteEvents = favoriteIds
     .map((id) => EVENTS.find((event) => event.id === id))
     .filter((event): event is EventItem => Boolean(event))
@@ -53,6 +54,7 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
                       isOccurrenceFavorite={isFavorite}
                       onToggleFavorite={toggleFavorite}
                       onSelectGrid={onSelectGrid}
+                      onSelectCamp={onSelectCamp}
                       note={
                         group.events.some((other) => hasOverlap(event, other))
                           ? 'This one shares a window with another favorite.'

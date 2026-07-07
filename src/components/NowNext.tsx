@@ -6,9 +6,10 @@ type NowNextProps = {
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
 };
 
-export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid }: NowNextProps) {
+export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: NowNextProps) {
   const now = getNow();
   const happening = events.filter((event) => isHappeningNow(event, now)).slice(0, 4);
   const soon = events
@@ -30,6 +31,7 @@ export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid }: No
           isFavorite={isFavorite}
           toggleFavorite={toggleFavorite}
           onSelectGrid={onSelectGrid}
+          onSelectCamp={onSelectCamp}
         />
         <NowNextColumn
           title="Starting soon"
@@ -38,6 +40,7 @@ export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid }: No
           isFavorite={isFavorite}
           toggleFavorite={toggleFavorite}
           onSelectGrid={onSelectGrid}
+          onSelectCamp={onSelectCamp}
         />
       </div>
     </section>
@@ -50,7 +53,8 @@ function NowNextColumn({
   empty,
   isFavorite,
   toggleFavorite,
-  onSelectGrid
+  onSelectGrid,
+  onSelectCamp
 }: {
   title: string;
   events: EventItem[];
@@ -58,6 +62,7 @@ function NowNextColumn({
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
+  onSelectCamp: (campId: string) => void;
 }) {
   return (
     <div className="min-w-0 space-y-1.5">
@@ -72,6 +77,7 @@ function NowNextColumn({
               isOccurrenceFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
               onSelectGrid={onSelectGrid}
+              onSelectCamp={onSelectCamp}
               compact
             />
           ))}
