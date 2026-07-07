@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#faf9f6"/>
+  <circle cx="256" cy="236" r="188" fill="#d97706"/>
+  <text x="256" y="278" text-anchor="middle" font-size="112" font-family="Arial, sans-serif" font-weight="900" fill="#ffffff">J26</text>
+  <rect x="207" y="322" width="98" height="98" rx="20" fill="#ffffff" transform="rotate(-8 256 371)"/>
+  <circle cx="232" cy="352" r="8" fill="#1c1917"/>
+  <circle cx="256" cy="371" r="8" fill="#1c1917"/>
+  <circle cx="280" cy="390" r="8" fill="#1c1917"/>
+</svg>

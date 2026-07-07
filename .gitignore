@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dev-dist/
+.npm-cache/
+.DS_Store
+*.tsbuildinfo
+*.log
+data-warnings.txt
+# local screenshots
+jomo26-*.png
+.playwright-mcp/
