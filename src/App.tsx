@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Destinations } from './components/Destinations';
 import { InfoTab } from './components/InfoTab';
 import { MapTab } from './components/MapTab';
 import { MissingOutCounter } from './components/MissingOutCounter';
@@ -7,13 +8,14 @@ import { Schedule } from './components/Schedule';
 import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
 
-type Tab = 'program' | 'schedule' | 'map' | 'info';
+type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info';
 
 function TabIcon({ name }: { name: Tab }) {
   const paths = {
     program: <path d="M4 5h16M4 12h16M4 19h10" />,
     schedule: <path d="M8 3v4M16 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
     map: <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15" />,
+    camps: <path d="M12 4 3 20h18L12 4Zm0 0v16" />,
     info: <path d="M12 17v-6m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
   };
 
@@ -106,6 +108,14 @@ export default function App() {
             </button>
             <button
               type="button"
+              className={tab === 'camps' ? 'is-active' : ''}
+              onClick={() => setTab('camps')}
+            >
+              <TabIcon name="camps" />
+              <span>Camps</span>
+            </button>
+            <button
+              type="button"
               className={tab === 'info' ? 'is-active' : ''}
               onClick={() => setTab('info')}
             >
@@ -136,6 +146,8 @@ export default function App() {
             toggleFavorite={toggleFavorite}
           />
         ) : null}
+
+        {tab === 'camps' ? <Destinations onSelectGrid={selectGrid} /> : null}
 
         {tab === 'info' ? <InfoTab /> : null}
 
