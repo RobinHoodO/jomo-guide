@@ -9,3 +9,4 @@ data-warnings.txt
 # local screenshots
 jomo26-*.png
 .playwright-mcp/
+.vercel
