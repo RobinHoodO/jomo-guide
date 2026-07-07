@@ -8,6 +8,7 @@ import {
   MAP_COLUMNS,
   MAP_NEIGHBORHOODS,
   MAP_ROWS,
+  groupByDay,
   parseGridCode,
   type MapCell
 } from '../lib/events';
@@ -183,6 +184,7 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
   });
   const watchIdRef = useRef<number | null>(null);
   const selectedCell = selectedGrid ? MAP_CELLS_BY_CODE.get(selectedGrid) || null : null;
+  const groupedSelectedEvents = useMemo(() => groupByDay(selectedCell?.events || []), [selectedCell?.events]);
   const userMarker = useMemo(() => (location.grid ? floatingGridPosition(location.grid) : null), [location.grid]);
   const showEventLayer = mapView === 'events';
 
@@ -548,18 +550,25 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
         </div>
 
         {selectedCell?.events.length ? (
-          <div className="space-y-2">
-            {selectedCell.events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                isFavorite={isFavorite(event.id)}
-                isOccurrenceFavorite={isFavorite}
-                onToggleFavorite={toggleFavorite}
-                onSelectGrid={onSelectGrid}
-                onSelectCamp={onSelectCamp}
-                compact
-              />
+          <div className="space-y-3">
+            {groupedSelectedEvents.map((group) => (
+              <section key={group.day} className="space-y-2 pt-1.5">
+                <div className="day-pill">{group.day}</div>
+                <div className="space-y-2">
+                  {group.events.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      isFavorite={isFavorite(event.id)}
+                      isOccurrenceFavorite={isFavorite}
+                      onToggleFavorite={toggleFavorite}
+                      onSelectGrid={onSelectGrid}
+                      onSelectCamp={onSelectCamp}
+                      compact
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         ) : (

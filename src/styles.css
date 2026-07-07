@@ -167,6 +167,11 @@ body {
   padding: 0.75rem;
 }
 
+.header-credits {
+  @apply text-[11px] font-bold leading-4;
+  color: rgba(242, 235, 217, 0.78);
+}
+
 .guide-footer {
   padding-inline: 0.75rem;
 }
@@ -436,10 +441,6 @@ main section > div > h3 {
 
 .event-expanded {
   @apply mt-2 border-t border-indigo-brand/15 pt-2.5;
-}
-
-.event-collapse-button {
-  @apply min-h-8 rounded-md text-xs font-semibold text-pink transition-colors duration-200 hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/30;
 }
 
 .event-host {

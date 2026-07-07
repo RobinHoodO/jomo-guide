@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventCard } from './EventCard';
 import { type EventItem, getNow, pickSerendipity } from '../lib/events';
 
@@ -31,12 +31,32 @@ function DiceIcon() {
 }
 
 export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: SerendipityProps) {
+  const seenIds = useRef<Set<string>>(new Set());
+  const didPickInitial = useRef(false);
   const now = useMemo(() => getNow(), []);
-  const [picked, setPicked] = useState<EventItem | null>(() => pickSerendipity(events, now));
+  const pickNext = useCallback(() => {
+    if (!events.length) return null;
+    let candidates = events.filter((event) => !seenIds.current.has(event.id));
+    if (!candidates.length) {
+      seenIds.current.clear();
+      candidates = events;
+    }
+    const next = pickSerendipity(candidates, now);
+    if (next) seenIds.current.add(next.id);
+    return next;
+  }, [events, now]);
+  const [picked, setPicked] = useState<EventItem | null>(() => {
+    didPickInitial.current = true;
+    return pickNext();
+  });
 
   useEffect(() => {
-    setPicked(pickSerendipity(events, now));
-  }, [events, now]);
+    if (didPickInitial.current) {
+      didPickInitial.current = false;
+      return;
+    }
+    setPicked(pickNext());
+  }, [events, pickNext]);
 
   return (
     <section className="space-y-2.5">
@@ -48,7 +68,7 @@ export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid, 
         <button
           type="button"
           className="shuffle-button"
-          onClick={() => setPicked(pickSerendipity(events, now))}
+          onClick={() => setPicked(pickNext())}
           disabled={!events.length}
           title="Roll with the filters you picked"
         >

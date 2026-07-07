@@ -39,6 +39,7 @@ function DestinationCard({
   const color = DEST_CATEGORY_COLORS[destination.category] || 'var(--pink)';
   const style = { '--category-color': color } as CSSProperties;
   const campEvents = eventsForCamp(destination.id);
+  const toggleExpanded = () => setIsExpanded((value) => !value);
 
   useEffect(() => {
     if (selectedCamp?.id !== destination.id) return;
@@ -55,34 +56,42 @@ function DestinationCard({
       className={`event-card ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}
       style={style}
     >
-      <div className="event-meta-row">
-        {destination.location.grid ? (
-          <button
-            type="button"
-            className="grid-badge"
-            onClick={() => onSelectGrid(destination.location.grid)}
-            title={`Show ${destination.location.grid} on the map`}
-          >
-            {destination.location.grid}
-          </button>
-        ) : (
-          <span className="soft-badge">roaming</span>
-        )}
-        <span className="category-label truncate">
-          <span aria-hidden="true" />
-          {destination.category || 'Destination'}
-        </span>
-      </div>
+      <div className="cursor-pointer" onClick={toggleExpanded}>
+        <div className="event-meta-row">
+          {destination.location.grid ? (
+            <button
+              type="button"
+              className="grid-badge"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                onSelectGrid(destination.location.grid);
+              }}
+              title={`Show ${destination.location.grid} on the map`}
+            >
+              {destination.location.grid}
+            </button>
+          ) : (
+            <span className="soft-badge">roaming</span>
+          )}
+          <span className="category-label truncate">
+            <span aria-hidden="true" />
+            {destination.category || 'Destination'}
+          </span>
+        </div>
 
-      <button
-        type="button"
-        className="event-title-button"
-        onClick={() => setIsExpanded((value) => !value)}
-        aria-expanded={isExpanded}
-        title="Open"
-      >
-        <h3 className="text-sm font-semibold leading-5 text-indigo-brand">{destination.title}</h3>
-      </button>
+        <button
+          type="button"
+          className="event-title-button"
+          onClick={(clickEvent) => {
+            clickEvent.stopPropagation();
+            toggleExpanded();
+          }}
+          aria-expanded={isExpanded}
+          title="Open / close"
+        >
+          <h3 className="text-sm font-semibold leading-5 text-indigo-brand">{destination.title}</h3>
+        </button>
+      </div>
 
       {isExpanded ? (
         <div className="event-expanded space-y-2">
@@ -115,9 +124,6 @@ function DestinationCard({
               </div>
             </div>
           ) : null}
-          <button type="button" className="event-collapse-button" onClick={() => setIsExpanded(false)}>
-            close
-          </button>
         </div>
       ) : null}
     </article>

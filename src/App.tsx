@@ -88,6 +88,9 @@ export default function App() {
             />
           </div>
           <MissingOutCounter total={EVENTS.length} favorites={favoriteIds.length} />
+          <p className="header-credits">
+            Gifted to you by Schoepa, Larissa, Alex, Maja, Robin, Fay, Marcus & Anuta &lt;3
+          </p>
           <nav className="tabbar" aria-label="Main tabs">
             <button
               type="button"

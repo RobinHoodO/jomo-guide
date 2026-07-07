@@ -74,7 +74,6 @@ export function EventCard({
   onToggleFavorite,
   onSelectGrid,
   onSelectCamp,
-  compact = false,
   muted = false,
   note,
   headingLevel = 'h3'
@@ -89,13 +88,14 @@ export function EventCard({
   const cardStyle = { '--category-color': categoryColor } as CSSProperties;
   const hostCamp = onSelectCamp ? campForEvent(event) : null;
   const TitleHeading = headingLevel;
+  const toggleExpanded = () => setIsExpanded((value) => !value);
 
   return (
     <article
       className={`event-card ${isExpanded ? 'is-expanded' : 'is-collapsed'} ${muted ? 'opacity-55 grayscale' : ''}`}
       style={cardStyle}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex cursor-pointer items-start gap-2.5" onClick={toggleExpanded}>
         <div className="min-w-0 flex-1">
           <div className="event-meta-row">
             <span className="time-badge">
@@ -110,7 +110,10 @@ export function EventCard({
               <button
                 type="button"
                 className="grid-badge"
-                onClick={() => onSelectGrid?.(event.location.grid)}
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  onSelectGrid?.(event.location.grid);
+                }}
                 title={`Show ${event.location.grid} on the map`}
               >
                 {event.location.grid}
@@ -124,9 +127,12 @@ export function EventCard({
           <button
             type="button"
             className="event-title-button"
-            onClick={() => setIsExpanded((value) => !value)}
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              toggleExpanded();
+            }}
             aria-expanded={isExpanded}
-            title={compact ? 'Peek' : 'Open the tiny portal'}
+            title="Open / close"
           >
             <TitleHeading className="truncate text-sm font-semibold leading-5 text-indigo-brand">
               {event.title}
@@ -136,7 +142,10 @@ export function EventCard({
         <button
           type="button"
           className={`icon-button ${isFavorite ? 'is-active' : ''}`}
-          onClick={() => onToggleFavorite(event.id)}
+          onClick={(clickEvent) => {
+            clickEvent.stopPropagation();
+            onToggleFavorite(event.id);
+          }}
           aria-label={isFavorite ? 'Remove from My Schedule' : 'Add to My Schedule'}
           title={isFavorite ? 'Let this one go' : 'Keep this one'}
         >
@@ -146,15 +155,6 @@ export function EventCard({
 
       {isExpanded ? (
         <div className="event-expanded">
-          <button
-            type="button"
-            className="event-collapse-button"
-            onClick={() => setIsExpanded(false)}
-          >
-            Close
-            <span className="ml-1 text-[var(--muted-indigo)]">▴</span>
-          </button>
-
           {event.host ? (
             <p className="event-host">
               {hostCamp ? (
