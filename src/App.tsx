@@ -70,9 +70,13 @@ export default function App() {
                 Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
               </p>
             </div>
-            <div className="brand-mark" aria-hidden="true">
-              ✦
-            </div>
+            <img
+              className="brand-mark"
+              src="/icons/icon-192.png"
+              alt="JOMO Guide"
+              width={44}
+              height={44}
+            />
           </div>
           <MissingOutCounter total={EVENTS.length} favorites={favoriteIds.length} />
           <nav className="tabbar" aria-label="Main tabs">

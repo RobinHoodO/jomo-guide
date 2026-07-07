@@ -164,13 +164,17 @@ body {
 }
 
 .guide-header {
-  margin-inline: -0.35rem;
   padding: 0.75rem;
 }
 
 .guide-footer {
-  margin-inline: -0.35rem;
   padding-inline: 0.75rem;
+}
+
+/* filter box: same rounded glass frame as the header, aligned to the same width */
+.filter-glass {
+  border-radius: 1.35rem 1rem 1.45rem 1.1rem;
+  box-shadow: 0 5px 18px rgba(7, 10, 30, 0.18);
 }
 
 button,
@@ -207,13 +211,13 @@ main section > div > h3 {
 }
 
 .brand-mark {
-  @apply grid h-10 w-10 shrink-0 place-items-center rounded-[1.2rem] text-lg font-black;
-  background: var(--yellow);
-  color: var(--indigo);
+  @apply h-11 w-11 shrink-0 object-cover;
   border-top-left-radius: 1.5rem;
   border-top-right-radius: 0.95rem;
   border-bottom-right-radius: 1.35rem;
   border-bottom-left-radius: 1.05rem;
+  border: 1px solid rgba(242, 235, 217, 0.35);
+  box-shadow: 0 4px 12px rgba(7, 10, 30, 0.28);
 }
 
 .sparkle {
@@ -652,6 +656,50 @@ main section > div > h3 {
   paint-order: stroke;
 }
 
+/* selected-square marker: an expanding yellow halo + a glowing pink ring,
+   painted on top of everything so the chosen cell is impossible to miss */
+.map-selection-halo {
+  fill: none;
+  stroke: var(--yellow);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-selection-halo 1.4s ease-out infinite;
+}
+
+.map-selection-ring {
+  fill: none;
+  stroke: var(--pink);
+  stroke-width: 3.2;
+  filter: drop-shadow(0 0 3px rgba(224, 68, 126, 0.85));
+  animation: map-selection-ring 1.4s ease-in-out infinite;
+}
+
+@keyframes map-selection-halo {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.82);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes map-selection-ring {
+  0%,
+  100% {
+    stroke-opacity: 1;
+    stroke-width: 3.2;
+  }
+
+  50% {
+    stroke-opacity: 0.5;
+    stroke-width: 4.8;
+  }
+}
+
 .legend-item {
   @apply flex min-w-0 items-center gap-1.5 text-[10px] font-bold leading-4;
   color: var(--indigo);
@@ -948,5 +996,15 @@ main section > div > h3 {
     animation: none !important;
     stroke-opacity: 1 !important;
     stroke-width: 3px !important;
+  }
+
+  .map-selection-halo {
+    display: none;
+  }
+
+  .map-selection-ring {
+    animation: none !important;
+    stroke-opacity: 1 !important;
+    stroke-width: 3.8px !important;
   }
 }

@@ -408,6 +408,36 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
             );
           })}
 
+          {selectedCell
+            ? (() => {
+                const columnIndex = MAP_COLUMNS.indexOf(selectedCell.column);
+                const rowIndex = MAP_ROWS.indexOf(selectedCell.row);
+                if (columnIndex < 0 || rowIndex < 0) return null;
+                const x = LEFT_AXIS + columnIndex * (CELL_SIZE + GAP);
+                const y = TOP_AXIS + rowIndex * (CELL_SIZE + GAP);
+                return (
+                  <g pointerEvents="none">
+                    <rect
+                      x={x - 3}
+                      y={y - 3}
+                      width={CELL_SIZE + 6}
+                      height={CELL_SIZE + 6}
+                      rx={8}
+                      className="map-selection-halo"
+                    />
+                    <rect
+                      x={x - 1.5}
+                      y={y - 1.5}
+                      width={CELL_SIZE + 3}
+                      height={CELL_SIZE + 3}
+                      rx={6}
+                      className="map-selection-ring"
+                    />
+                  </g>
+                );
+              })()
+            : null}
+
           <g pointerEvents="none">
             {mapView === 'plazas'
               ? PLAZAS.map((plaza, index) => {

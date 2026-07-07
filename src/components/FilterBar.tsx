@@ -42,7 +42,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
   };
 
   return (
-    <section className="glass sticky top-0 z-20 -mx-4 px-4 py-2.5">
+    <section className="glass filter-glass sticky top-2 z-20 p-3">
       <label className="sr-only" htmlFor="program-search">
         Search program
       </label>

@@ -80,6 +80,33 @@ export function InfoTab() {
         </div>
       </section>
 
+      <section className="panel-card space-y-3">
+        <div>
+          <p className="section-kicker text-pink">No app store needed</p>
+          <h3 className="display-heading text-lg text-indigo-brand">Install on your phone</h3>
+          <p className="mt-1 text-sm leading-5 text-[var(--muted-indigo)]">
+            Add JOMO Guide to your home screen — it opens full-screen and works offline on the playa.
+          </p>
+        </div>
+
+        <div className="grid gap-2">
+          <div className="rounded-2xl border border-indigo-brand/15 bg-white/40 p-2.5 text-sm leading-5 text-indigo-brand">
+            <p className="mb-1 font-black">🍎 iPhone / iPad (Safari)</p>
+            <p>
+              Tap the <strong>Share</strong> button (the square with an arrow), scroll down, then tap{' '}
+              <strong>Add to Home Screen</strong>.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-indigo-brand/15 bg-white/40 p-2.5 text-sm leading-5 text-indigo-brand">
+            <p className="mb-1 font-black">🤖 Android (Chrome)</p>
+            <p>
+              Tap the <strong>⋮</strong> menu (top right), then tap <strong>Install app</strong> or{' '}
+              <strong>Add to Home screen</strong>.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-2">
         {INFO_SECTIONS.map((section) => (
           <details key={section.id} className="info-accordion">
