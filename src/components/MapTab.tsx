@@ -418,19 +418,19 @@ export function MapTab({ selectedGrid, onSelectGrid, isFavorite, toggleFavorite 
                 return (
                   <g pointerEvents="none">
                     <rect
-                      x={x - 3}
-                      y={y - 3}
-                      width={CELL_SIZE + 6}
-                      height={CELL_SIZE + 6}
-                      rx={8}
+                      x={x - 7}
+                      y={y - 7}
+                      width={CELL_SIZE + 14}
+                      height={CELL_SIZE + 14}
+                      rx={10}
                       className="map-selection-halo"
                     />
                     <rect
-                      x={x - 1.5}
-                      y={y - 1.5}
-                      width={CELL_SIZE + 3}
-                      height={CELL_SIZE + 3}
-                      rx={6}
+                      x={x - 3.5}
+                      y={y - 3.5}
+                      width={CELL_SIZE + 7}
+                      height={CELL_SIZE + 7}
+                      rx={8}
                       className="map-selection-ring"
                     />
                   </g>

@@ -661,7 +661,7 @@ main section > div > h3 {
 .map-selection-halo {
   fill: none;
   stroke: var(--yellow);
-  stroke-width: 3;
+  stroke-width: 4;
   transform-box: fill-box;
   transform-origin: center;
   animation: map-selection-halo 1.4s ease-out infinite;
@@ -670,20 +670,20 @@ main section > div > h3 {
 .map-selection-ring {
   fill: none;
   stroke: var(--pink);
-  stroke-width: 3.2;
-  filter: drop-shadow(0 0 3px rgba(224, 68, 126, 0.85));
+  stroke-width: 4.5;
+  filter: drop-shadow(0 0 5px rgba(224, 68, 126, 0.95));
   animation: map-selection-ring 1.4s ease-in-out infinite;
 }
 
 @keyframes map-selection-halo {
   0% {
-    opacity: 0.9;
-    transform: scale(0.82);
+    opacity: 0.95;
+    transform: scale(0.72);
   }
 
   100% {
     opacity: 0;
-    transform: scale(1.9);
+    transform: scale(2.9);
   }
 }
 
@@ -691,12 +691,12 @@ main section > div > h3 {
   0%,
   100% {
     stroke-opacity: 1;
-    stroke-width: 3.2;
+    stroke-width: 4.5;
   }
 
   50% {
     stroke-opacity: 0.5;
-    stroke-width: 4.8;
+    stroke-width: 6.8;
   }
 }
 
@@ -1029,6 +1029,6 @@ main section > div > h3 {
   .map-selection-ring {
     animation: none !important;
     stroke-opacity: 1 !important;
-    stroke-width: 3.8px !important;
+    stroke-width: 5px !important;
   }
 }
