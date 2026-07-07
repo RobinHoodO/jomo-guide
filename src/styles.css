@@ -977,6 +977,30 @@ main section > div > h3 {
   content: "-";
 }
 
+.info-toggle summary {
+  @apply inline-flex min-h-8 cursor-pointer list-none items-center text-xs font-black text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+}
+
+.info-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.info-toggle summary::after {
+  content: "▾";
+  margin-left: 0.3rem;
+}
+
+.info-toggle[open] summary::after {
+  content: "▴";
+}
+
+.tel-link {
+  color: var(--pink);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

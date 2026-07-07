@@ -34,6 +34,22 @@ function FlameIcon() {
   );
 }
 
+// Matches emergency-style numbers only (+46… international, or bare 112/1177),
+// so times like "10 km/h" or "09–22h" are never turned into call links.
+const PHONE_RE = /(\+46[\d\s]{5,}\d|\b11(?:2|77)\b)/g;
+
+function linkifyPhones(text: string) {
+  return text.split(PHONE_RE).map((part, i) =>
+    i % 2 === 1 ? (
+      <a key={i} href={`tel:${part.replace(/\s+/g, '')}`} className="tel-link">
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 export function InfoTab() {
   return (
     <div className="space-y-5">
@@ -53,11 +69,14 @@ export function InfoTab() {
         <div className="grid gap-2">
           {EMERGENCY.items.map((item) => (
             <div key={item.label} className="emergency-phone">
-              <div className="inline-flex items-center gap-1.5 text-pink">
+              <a
+                href={`tel:${item.label.replace(/\s+/g, '')}`}
+                className="inline-flex min-h-8 items-center gap-1.5 text-pink"
+              >
                 <PhoneIcon />
                 <span>{item.label}</span>
-              </div>
-              <p>{item.detail}</p>
+              </a>
+              <p>{linkifyPhones(item.detail)}</p>
             </div>
           ))}
         </div>
@@ -67,7 +86,7 @@ export function InfoTab() {
             <FlameIcon />
             Fire
           </div>
-          <p>{EMERGENCY.fire}</p>
+          <p>{linkifyPhones(EMERGENCY.fire)}</p>
         </div>
 
         <div className="grid gap-1.5">
@@ -109,20 +128,26 @@ export function InfoTab() {
 
       <section className="space-y-2">
         {INFO_SECTIONS.map((section) => (
-          <details key={section.id} className="info-accordion">
-            <summary>
-              <span aria-hidden="true">{section.emoji}</span>
-              <span>{section.title}</span>
-            </summary>
-            <div className="space-y-3 px-3 pb-3 pt-1">
-              {section.blocks.map((block, index) => (
-                <div key={`${section.id}-${index}`} className="text-sm leading-6 text-indigo-brand">
-                  {block.heading ? <h4 className="font-black text-pink">{block.heading}</h4> : null}
-                  <p>{block.body}</p>
-                </div>
-              ))}
+          <div key={section.id} className="panel-card space-y-2">
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="text-lg leading-none">
+                {section.emoji}
+              </span>
+              <h3 className="display-heading text-base text-indigo-brand">{section.title}</h3>
             </div>
-          </details>
+            <p className="text-sm leading-6 text-indigo-brand">{linkifyPhones(section.summary)}</p>
+            <details className="info-toggle">
+              <summary>Read the full guide</summary>
+              <div className="mt-2 space-y-3 border-t border-indigo-brand/15 pt-2.5">
+                {section.details.map((block, index) => (
+                  <div key={`${section.id}-${index}`} className="text-sm leading-6 text-indigo-brand">
+                    {block.heading ? <h4 className="font-black text-pink">{block.heading}</h4> : null}
+                    <p>{linkifyPhones(block.body)}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
         ))}
       </section>
     </div>
