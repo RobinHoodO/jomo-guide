@@ -10,21 +10,21 @@
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.2.7",
+    "@tailwindcss/vite": "^4.3.2",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.11",
     "vite": "^7.0.0",
-    "vite-plugin-pwa": "^1.0.1"
+    "vite-plugin-pwa": "^1.0.1",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^24.0.10",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "papaparse": "^5.5.3",
-    "typescript": "^5.8.3",
-    "workbox-window": "^7.4.1"
+    "typescript": "^5.8.3"
   }
 }
