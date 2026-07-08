@@ -4,7 +4,9 @@ import { InfoTab } from './components/InfoTab';
 import { MapTab } from './components/MapTab';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
+import { PullToRefresh } from './components/PullToRefresh';
 import { Schedule } from './components/Schedule';
+import { UpdateBanner } from './components/UpdateBanner';
 import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
 
@@ -59,6 +61,7 @@ export default function App() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-navy text-cream">
+      <UpdateBanner />
       <div className="ambient-blobs" aria-hidden="true">
         <div className="ambient-blob ambient-blob-1" />
         <div className="ambient-blob ambient-blob-2" />
@@ -69,125 +72,127 @@ export default function App() {
         <div className="ambient-blob ambient-blob-7" />
         <div className="ambient-blob ambient-blob-8" />
       </div>
-      <div className="relative z-10 mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
-        <header className="guide-header mb-5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="section-kicker text-cream">Borderland 2026</p>
-              <h1 className="display-heading mt-0.5 text-3xl font-black leading-8 text-cream">JOMO GUIDE</h1>
-              <p className="mt-1 max-w-xl text-sm leading-5 text-cream">
-                Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
-              </p>
+      <PullToRefresh>
+        <div className="relative z-10 mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
+          <header className="guide-header mb-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="section-kicker text-cream">Borderland 2026</p>
+                <h1 className="display-heading mt-0.5 text-3xl font-black leading-8 text-cream">JOMO GUIDE</h1>
+                <p className="mt-1 max-w-xl text-sm leading-5 text-cream">
+                  Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
+                </p>
+              </div>
+              <img
+                className="brand-mark"
+                src="/icons/icon-192.png"
+                alt="JOMO Guide"
+                width={44}
+                height={44}
+              />
             </div>
-            <img
-              className="brand-mark"
-              src="/icons/icon-192.png"
-              alt="JOMO Guide"
-              width={44}
-              height={44}
+            <MissingOutCounter total={EVENTS.length} favorites={favoriteIds.length} />
+            <p className="header-credits">
+              Gifted to you by Schoepa, Larissa, Alex, Maja, Robin, Fay, Marcus & Anuta &lt;3
+            </p>
+            <nav className="tabbar" aria-label="Main tabs">
+              <button
+                type="button"
+                className={tab === 'program' ? 'is-active' : ''}
+                onClick={() => setTab('program')}
+              >
+                <TabIcon name="program" />
+                <span>Program</span>
+              </button>
+              <button
+                type="button"
+                className={tab === 'schedule' ? 'is-active' : ''}
+                onClick={() => setTab('schedule')}
+              >
+                <TabIcon name="schedule" />
+                <span>Schedule</span>
+              </button>
+              <button
+                type="button"
+                className={tab === 'map' ? 'is-active' : ''}
+                onClick={() => setTab('map')}
+              >
+                <TabIcon name="map" />
+                <span>Map</span>
+              </button>
+              <button
+                type="button"
+                className={tab === 'camps' ? 'is-active' : ''}
+                onClick={() => setTab('camps')}
+              >
+                <TabIcon name="camps" />
+                <span>Camps</span>
+              </button>
+              <button
+                type="button"
+                className={tab === 'info' ? 'is-active' : ''}
+                onClick={() => setTab('info')}
+              >
+                <TabIcon name="info" />
+                <span>Info</span>
+              </button>
+            </nav>
+          </header>
+
+          {tab === 'program' ? (
+            <Program
+              isFavorite={isFavorite}
+              toggleFavorite={toggleFavorite}
+              onSelectGrid={selectGrid}
+              onSelectCamp={selectCamp}
             />
-          </div>
-          <MissingOutCounter total={EVENTS.length} favorites={favoriteIds.length} />
-          <p className="header-credits">
-            Gifted to you by Schoepa, Larissa, Alex, Maja, Robin, Fay, Marcus & Anuta &lt;3
-          </p>
-          <nav className="tabbar" aria-label="Main tabs">
-            <button
-              type="button"
-              className={tab === 'program' ? 'is-active' : ''}
-              onClick={() => setTab('program')}
+          ) : null}
+
+          {tab === 'schedule' ? (
+            <Schedule
+              favoriteIds={favoriteIds}
+              isFavorite={isFavorite}
+              toggleFavorite={toggleFavorite}
+              onSelectGrid={selectGrid}
+              onSelectCamp={selectCamp}
+            />
+          ) : null}
+
+          {tab === 'map' ? (
+            <MapTab
+              selectedGrid={selectedGrid}
+              onSelectGrid={selectGrid}
+              onSelectCamp={selectCamp}
+              isFavorite={isFavorite}
+              toggleFavorite={toggleFavorite}
+            />
+          ) : null}
+
+          {tab === 'camps' ? (
+            <Destinations
+              selectedCamp={selectedCamp}
+              isFavorite={isFavorite}
+              toggleFavorite={toggleFavorite}
+              onSelectGrid={selectGrid}
+              onSelectCamp={selectCamp}
+            />
+          ) : null}
+
+          {tab === 'info' ? <InfoTab /> : null}
+
+          <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
+            Unofficial companion, made by a burner. Works offline after first load; your stars stay on this phone.{' '}
+            <a
+              href="https://github.com/RobinHoodO/jomo-guide"
+              target="_blank"
+              rel="noopener"
+              className="footer-link"
             >
-              <TabIcon name="program" />
-              <span>Program</span>
-            </button>
-            <button
-              type="button"
-              className={tab === 'schedule' ? 'is-active' : ''}
-              onClick={() => setTab('schedule')}
-            >
-              <TabIcon name="schedule" />
-              <span>Schedule</span>
-            </button>
-            <button
-              type="button"
-              className={tab === 'map' ? 'is-active' : ''}
-              onClick={() => setTab('map')}
-            >
-              <TabIcon name="map" />
-              <span>Map</span>
-            </button>
-            <button
-              type="button"
-              className={tab === 'camps' ? 'is-active' : ''}
-              onClick={() => setTab('camps')}
-            >
-              <TabIcon name="camps" />
-              <span>Camps</span>
-            </button>
-            <button
-              type="button"
-              className={tab === 'info' ? 'is-active' : ''}
-              onClick={() => setTab('info')}
-            >
-              <TabIcon name="info" />
-              <span>Info</span>
-            </button>
-          </nav>
-        </header>
-
-        {tab === 'program' ? (
-          <Program
-            isFavorite={isFavorite}
-            toggleFavorite={toggleFavorite}
-            onSelectGrid={selectGrid}
-            onSelectCamp={selectCamp}
-          />
-        ) : null}
-
-        {tab === 'schedule' ? (
-          <Schedule
-            favoriteIds={favoriteIds}
-            isFavorite={isFavorite}
-            toggleFavorite={toggleFavorite}
-            onSelectGrid={selectGrid}
-            onSelectCamp={selectCamp}
-          />
-        ) : null}
-
-        {tab === 'map' ? (
-          <MapTab
-            selectedGrid={selectedGrid}
-            onSelectGrid={selectGrid}
-            onSelectCamp={selectCamp}
-            isFavorite={isFavorite}
-            toggleFavorite={toggleFavorite}
-          />
-        ) : null}
-
-        {tab === 'camps' ? (
-          <Destinations
-            selectedCamp={selectedCamp}
-            isFavorite={isFavorite}
-            toggleFavorite={toggleFavorite}
-            onSelectGrid={selectGrid}
-            onSelectCamp={selectCamp}
-          />
-        ) : null}
-
-        {tab === 'info' ? <InfoTab /> : null}
-
-        <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
-          Unofficial companion, made by a burner. Works offline after first load; your stars stay on this phone.{' '}
-          <a
-            href="https://github.com/RobinHoodO/jomo-guide"
-            target="_blank"
-            rel="noopener"
-            className="footer-link"
-          >
-            Open source on GitHub
-          </a>
-        </footer>
-      </div>
+              Open source on GitHub
+            </a>
+          </footer>
+        </div>
+      </PullToRefresh>
     </main>
   );
 }

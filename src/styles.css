@@ -195,6 +195,65 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.update-banner {
+  @apply sticky top-0 z-50 flex w-full items-center justify-center gap-3 px-3 py-2 text-xs font-black;
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+  background: var(--indigo);
+  color: var(--cream);
+  border-bottom: 2px solid var(--pink);
+  box-shadow: 0 6px 16px rgba(7, 10, 30, 0.22);
+}
+
+.update-banner button {
+  @apply rounded-full px-2.5 py-1 text-[10px] font-black transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60;
+  background: var(--pink);
+  color: var(--cream);
+}
+
+.update-banner button:hover {
+  background: var(--yellow);
+  color: var(--indigo);
+}
+
+.pull-to-refresh {
+  position: relative;
+}
+
+.pull-to-refresh-indicator {
+  @apply pointer-events-none fixed left-1/2 top-2 z-40 inline-flex min-h-9 items-center gap-2 rounded-full px-3 text-[11px] font-black transition-all duration-200;
+  top: calc(0.5rem + env(safe-area-inset-top));
+  background: rgba(242, 235, 217, 0.94);
+  color: var(--indigo);
+  box-shadow: 0 5px 18px rgba(7, 10, 30, 0.24);
+  will-change: transform, opacity;
+}
+
+.pull-to-refresh-spinner {
+  @apply h-4 w-4 rounded-full;
+  border: 2px solid rgba(52, 55, 158, 0.22);
+  border-top-color: var(--pink);
+  transform: rotate(0deg);
+}
+
+.pull-to-refresh-indicator.is-pulling .pull-to-refresh-spinner {
+  transform: rotate(35deg);
+}
+
+.pull-to-refresh-indicator.is-refreshing .pull-to-refresh-spinner {
+  animation: pull-to-refresh-spin 0.7s linear infinite;
+}
+
+.pull-to-refresh-indicator.is-done .pull-to-refresh-spinner {
+  border-color: var(--leaf);
+  background: var(--leaf);
+}
+
+@keyframes pull-to-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .display-heading {
   font-family: var(--display-font);
   font-weight: 800;

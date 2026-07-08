@@ -8,7 +8,7 @@ export default defineConfig({
     react() as any,
     tailwindcss() as any,
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['events.json', 'map-official.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
       manifest: {
         name: 'Jomo Guide',
