@@ -213,7 +213,8 @@ export const MAP_EVENTS: MapEvent[] = EVENTS.flatMap((event) => {
   return grid ? [{ event, grid, neighborhood: getNeighborhood(event) }] : [];
 });
 
-export const FREE_FLOATING_EVENT_COUNT = EVENTS.length - MAP_EVENTS.length;
+export const FREE_FLOATING_EVENTS: EventItem[] = EVENTS.filter((event) => !parseGridCode(event.location.grid));
+export const FREE_FLOATING_EVENT_COUNT = FREE_FLOATING_EVENTS.length;
 
 export const GRID_BOUNDS = {
   minColumnIndex: 1,

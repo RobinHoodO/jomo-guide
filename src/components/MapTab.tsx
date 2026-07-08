@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EventCard } from './EventCard';
 import {
+  FREE_FLOATING_EVENTS,
   FREE_FLOATING_EVENT_COUNT,
   GRID_BOUNDS,
   MAP_CELLS,
@@ -176,6 +177,7 @@ function PlaceMarker({ place }: { place: (typeof PLACES)[number] }) {
 
 export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
+  const [showFreeFloating, setShowFreeFloating] = useState(false);
   const [mapView, setMapView] = useState<MapView>('events');
   const [location, setLocation] = useState<LocationState>({
     grid: null,
@@ -185,6 +187,7 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
   const watchIdRef = useRef<number | null>(null);
   const selectedCell = selectedGrid ? MAP_CELLS_BY_CODE.get(selectedGrid) || null : null;
   const groupedSelectedEvents = useMemo(() => groupByDay(selectedCell?.events || []), [selectedCell?.events]);
+  const groupedFreeFloatingEvents = useMemo(() => groupByDay(FREE_FLOATING_EVENTS), []);
   const userMarker = useMemo(() => (location.grid ? floatingGridPosition(location.grid) : null), [location.grid]);
   const showEventLayer = mapView === 'events';
 
@@ -577,6 +580,54 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
           </p>
         )}
       </section>
+
+      {FREE_FLOATING_EVENTS.length > 0 ? (
+        <section className="space-y-2">
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <p className="section-kicker">No fixed location</p>
+              <h3 className="display-heading text-base">
+                {FREE_FLOATING_EVENTS.length} happenings not on the grid
+              </h3>
+              <p className="mt-1 text-sm leading-5 text-[var(--muted-indigo)]">
+                These float free of the map — still part of the program.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`chip ${showFreeFloating ? 'is-active' : ''}`}
+              onClick={() => setShowFreeFloating((current) => !current)}
+              aria-expanded={showFreeFloating}
+            >
+              {showFreeFloating ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          {showFreeFloating ? (
+            <div className="space-y-3">
+              {groupedFreeFloatingEvents.map((group) => (
+                <section key={group.day} className="space-y-2 pt-1.5">
+                  <div className="day-pill">{group.day}</div>
+                  <div className="space-y-2">
+                    {group.events.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        isFavorite={isFavorite(event.id)}
+                        isOccurrenceFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
+                        onSelectGrid={onSelectGrid}
+                        onSelectCamp={onSelectCamp}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }
