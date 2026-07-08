@@ -9,8 +9,6 @@ export type FlagKey =
   | 'warnSensory'
   | 'warnTriggering';
 
-export type TimeWindowKey = 'morning' | 'afternoon' | 'evening' | 'night';
-
 export type EventItem = {
   id: string;
   title: string;
@@ -66,7 +64,8 @@ export type MapCell = {
 export type Filters = {
   query: string;
   day: string | null;
-  timeWindows: TimeWindowKey[];
+  hourFrom: number | null;
+  hourTo: number | null;
   categories: string[];
   flags: FlagKey[];
   familyMode: boolean;
@@ -123,13 +122,6 @@ export function getRecurringSiblings(event: EventItem) {
     ) || []
   );
 }
-
-export const TIME_WINDOWS: Array<{ key: TimeWindowKey; label: string; range: string; start: number; end: number }> = [
-  { key: 'morning', label: 'Morning', range: '06-12', start: 6 * 60, end: 12 * 60 },
-  { key: 'afternoon', label: 'Afternoon', range: '12-18', start: 12 * 60, end: 18 * 60 },
-  { key: 'evening', label: 'Evening', range: '18-24', start: 18 * 60, end: 24 * 60 },
-  { key: 'night', label: 'Night', range: '00-06', start: 0, end: 6 * 60 }
-];
 
 export const FLAG_FILTERS: Array<{ key: FlagKey; label: string; badge: string; icon: string }> = [
   { key: 'kid', label: 'Kid-friendly', badge: 'Kid', icon: '🐒' },
@@ -297,14 +289,10 @@ export function filterEvents(events: EventItem[], filters: Filters) {
   return events.filter((event) => {
     if (filters.day && event.day !== filters.day) return false;
 
-    if (filters.timeWindows.length) {
-      const startsInWindow = TIME_WINDOWS.some(
-        (window) =>
-          filters.timeWindows.includes(window.key) &&
-          event.sortMinutes >= window.start &&
-          event.sortMinutes < window.end
-      );
-      if (!event.allDay && !startsInWindow) return false;
+    if (filters.hourFrom != null || filters.hourTo != null) {
+      const from = (filters.hourFrom ?? 0) * 60;
+      const to = (filters.hourTo ?? 24) * 60;
+      if (!event.allDay && (event.sortMinutes < from || event.sortMinutes >= to)) return false;
     }
 
     if (filters.familyMode) {

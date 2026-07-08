@@ -15,7 +15,8 @@ type ProgramProps = {
 const EMPTY_FILTERS: Filters = {
   query: '',
   day: null,
-  timeWindows: [],
+  hourFrom: null,
+  hourTo: null,
   categories: [],
   flags: [],
   familyMode: false
