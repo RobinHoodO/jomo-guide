@@ -10,3 +10,4 @@ data-warnings.txt
 jomo26-*.png
 .playwright-mcp/
 .vercel
+data/reconciliation-report.txt
