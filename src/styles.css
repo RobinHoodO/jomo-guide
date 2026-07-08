@@ -323,6 +323,19 @@ main section > div > h3 {
   color: var(--cream);
 }
 
+.hour-select-label {
+  @apply inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black leading-[11px];
+  background: rgba(242, 235, 217, 0.9);
+  color: var(--indigo);
+}
+
+.hour-select {
+  @apply min-h-6 rounded-full px-1.5 text-[10px] font-black outline-none focus:ring-2 focus:ring-pink/35;
+  background: var(--cream);
+  color: var(--indigo);
+  border: 0;
+}
+
 .category-chip {
   gap: 0.4rem;
 }

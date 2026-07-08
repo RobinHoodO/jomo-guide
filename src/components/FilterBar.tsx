@@ -4,10 +4,8 @@ import {
   CATEGORY_COLORS,
   FLAG_FILTERS,
   PROGRAM_DAYS,
-  TIME_WINDOWS,
   type Filters,
-  type FlagKey,
-  type TimeWindowKey
+  type FlagKey
 } from '../lib/events';
 
 type FilterBarProps = {
@@ -15,16 +13,20 @@ type FilterBarProps = {
   setFilters: (filters: Filters) => void;
 };
 
+const FROM_HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+const TO_HOURS = Array.from({ length: 24 }, (_, index) => index + 1);
+
+function formatHour(hour: number) {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
+function parseHour(value: string) {
+  return value === '' ? null : Number(value);
+}
+
 export function FilterBar({ filters, setFilters }: FilterBarProps) {
   const toggleDay = (day: string | null) => {
     setFilters({ ...filters, day });
-  };
-
-  const toggleTimeWindow = (timeWindow: TimeWindowKey) => {
-    const timeWindows = filters.timeWindows.includes(timeWindow)
-      ? filters.timeWindows.filter((item) => item !== timeWindow)
-      : [...filters.timeWindows, timeWindow];
-    setFilters({ ...filters, timeWindows });
   };
 
   const toggleCategory = (category: string) => {
@@ -67,7 +69,15 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
           type="button"
           className="min-h-8 rounded-md px-1 text-[10px] font-black leading-[11px] text-cream transition-colors duration-200 hover:text-yellow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
           onClick={() =>
-            setFilters({ query: '', day: null, timeWindows: [], categories: [], flags: [], familyMode: false })
+            setFilters({
+              query: '',
+              day: null,
+              hourFrom: null,
+              hourTo: null,
+              categories: [],
+              flags: [],
+              familyMode: false
+            })
           }
         >
           clear
@@ -94,18 +104,38 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
         ))}
       </div>
 
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-        {TIME_WINDOWS.map((timeWindow) => (
-          <button
-            type="button"
-            key={timeWindow.key}
-            className={`chip justify-center ${filters.timeWindows.includes(timeWindow.key) ? 'is-active' : ''}`}
-            onClick={() => toggleTimeWindow(timeWindow.key)}
-            title={`${timeWindow.label} (${timeWindow.range})`}
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="section-kicker text-cream">time</span>
+        <label className="hour-select-label">
+          <span>From</span>
+          <select
+            className="hour-select"
+            value={filters.hourFrom ?? ''}
+            onChange={(event) => setFilters({ ...filters, hourFrom: parseHour(event.target.value) })}
           >
-            {timeWindow.label} ({timeWindow.range})
-          </button>
-        ))}
+            <option value="">Any</option>
+            {FROM_HOURS.map((hour) => (
+              <option key={hour} value={hour}>
+                {formatHour(hour)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="hour-select-label">
+          <span>To</span>
+          <select
+            className="hour-select"
+            value={filters.hourTo ?? ''}
+            onChange={(event) => setFilters({ ...filters, hourTo: parseHour(event.target.value) })}
+          >
+            <option value="">Any</option>
+            {TO_HOURS.map((hour) => (
+              <option key={hour} value={hour}>
+                {formatHour(hour)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="scroll-chips mt-2">
