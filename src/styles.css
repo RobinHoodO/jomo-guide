@@ -47,6 +47,19 @@ body {
   background: #7FA8E0;
 }
 
+.ambient-blobs::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 27, 51, 0.04) 0,
+    rgba(22, 27, 51, 0.16) 9rem,
+    rgba(22, 27, 51, 0.68) 18rem,
+    rgba(22, 27, 51, 0.76) 100%
+  );
+}
+
 .ambient-blob {
   position: absolute;
   display: block;
@@ -147,10 +160,10 @@ body {
 
 /* frosted glass chrome — separates from the colorful background while letting it show through */
 .glass {
-  background: rgba(22, 27, 51, 0.32);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid rgba(242, 235, 217, 0.16);
+  background: rgba(22, 27, 51, 0.68);
+  -webkit-backdrop-filter: blur(14px) saturate(0.92);
+  backdrop-filter: blur(14px) saturate(0.92);
+  border: 1px solid rgba(242, 235, 217, 0.2);
 }
 
 .guide-header,
@@ -174,6 +187,9 @@ body {
 
 .guide-footer {
   padding-inline: 0.75rem;
+  background: rgba(22, 27, 51, 0.64);
+  -webkit-backdrop-filter: blur(14px) saturate(0.96);
+  backdrop-filter: blur(14px) saturate(0.96);
 }
 
 /* filter box: same rounded glass frame as the header, aligned to the same width */
