@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Destinations } from './components/Destinations';
 import { InfoTab } from './components/InfoTab';
 import { MapTab } from './components/MapTab';
@@ -42,7 +42,17 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('program');
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const toastTimer = useRef<number | null>(null);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current !== null) {
+        window.clearTimeout(toastTimer.current);
+      }
+    };
+  }, []);
 
   const selectGrid = (grid: string) => {
     const parsed = parseGridCode(grid);
@@ -57,6 +67,24 @@ export default function App() {
   const selectCamp = (campId: string) => {
     setSelectedCamp((current) => ({ id: campId, token: (current?.token ?? 0) + 1 }));
     setTab('camps');
+  };
+
+  const showScheduleToast = () => {
+    if (toastTimer.current !== null) {
+      window.clearTimeout(toastTimer.current);
+    }
+    setShowSavedToast(true);
+    toastTimer.current = window.setTimeout(() => {
+      setShowSavedToast(false);
+      toastTimer.current = null;
+    }, 1600);
+  };
+
+  const handleToggleFavorite = (id: string) => {
+    if (!isFavorite(id)) {
+      showScheduleToast();
+    }
+    toggleFavorite(id);
   };
 
   return (
@@ -110,7 +138,10 @@ export default function App() {
                 onClick={() => setTab('schedule')}
               >
                 <TabIcon name="schedule" />
-                <span>Schedule</span>
+                <span className="tab-label">
+                  Schedule
+                  {favoriteIds.length > 0 ? <span className="tab-badge">{favoriteIds.length}</span> : null}
+                </span>
               </button>
               <button
                 type="button"
@@ -142,7 +173,7 @@ export default function App() {
           {tab === 'program' ? (
             <Program
               isFavorite={isFavorite}
-              toggleFavorite={toggleFavorite}
+              toggleFavorite={handleToggleFavorite}
               onSelectGrid={selectGrid}
               onSelectCamp={selectCamp}
             />
@@ -152,7 +183,7 @@ export default function App() {
             <Schedule
               favoriteIds={favoriteIds}
               isFavorite={isFavorite}
-              toggleFavorite={toggleFavorite}
+              toggleFavorite={handleToggleFavorite}
               onSelectGrid={selectGrid}
               onSelectCamp={selectCamp}
             />
@@ -164,7 +195,7 @@ export default function App() {
               onSelectGrid={selectGrid}
               onSelectCamp={selectCamp}
               isFavorite={isFavorite}
-              toggleFavorite={toggleFavorite}
+              toggleFavorite={handleToggleFavorite}
             />
           ) : null}
 
@@ -172,7 +203,7 @@ export default function App() {
             <Destinations
               selectedCamp={selectedCamp}
               isFavorite={isFavorite}
-              toggleFavorite={toggleFavorite}
+              toggleFavorite={handleToggleFavorite}
               onSelectGrid={selectGrid}
               onSelectCamp={selectCamp}
             />
@@ -193,6 +224,11 @@ export default function App() {
           </footer>
         </div>
       </PullToRefresh>
+      {showSavedToast ? (
+        <div className="toast" role="status" aria-live="polite">
+          Saved to your Schedule ⭐
+        </div>
+      ) : null}
     </main>
   );
 }
