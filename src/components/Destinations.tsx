@@ -7,6 +7,7 @@ import {
   filterDestinations,
   type Destination
 } from '../lib/destinations';
+import { groupByDay } from '../lib/events';
 import { eventsForCamp } from '../lib/links';
 
 type CampSelection = { id: string; token: number };
@@ -39,6 +40,7 @@ function DestinationCard({
   const color = DEST_CATEGORY_COLORS[destination.category] || 'var(--pink)';
   const style = { '--category-color': color } as CSSProperties;
   const campEvents = eventsForCamp(destination.id);
+  const groupedCampEvents = useMemo(() => groupByDay(campEvents), [campEvents]);
   const toggleExpanded = () => setIsExpanded((value) => !value);
 
   useEffect(() => {
@@ -107,19 +109,26 @@ function DestinationCard({
               <h4 className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted-indigo)]">
                 Events here ({campEvents.length})
               </h4>
-              <div className="space-y-2">
-                {campEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    isFavorite={isFavorite(event.id)}
-                    isOccurrenceFavorite={isFavorite}
-                    onToggleFavorite={toggleFavorite}
-                    onSelectGrid={onSelectGrid}
-                    onSelectCamp={onSelectCamp}
-                    headingLevel="h5"
-                    compact
-                  />
+              <div className="space-y-3">
+                {groupedCampEvents.map((group) => (
+                  <section key={group.day} className="space-y-2 pt-1.5">
+                    <div className="day-pill">{group.day}</div>
+                    <div className="space-y-2">
+                      {group.events.map((event) => (
+                        <EventCard
+                          key={event.id}
+                          event={event}
+                          isFavorite={isFavorite(event.id)}
+                          isOccurrenceFavorite={isFavorite}
+                          onToggleFavorite={toggleFavorite}
+                          onSelectGrid={onSelectGrid}
+                          onSelectCamp={onSelectCamp}
+                          headingLevel="h5"
+                          compact
+                        />
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </div>
