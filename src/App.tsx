@@ -43,6 +43,7 @@ export default function App() {
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [flatBrandMark, setFlatBrandMark] = useState(false);
   const toastTimer = useRef<number | null>(null);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
@@ -111,13 +112,31 @@ export default function App() {
                   Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
                 </p>
               </div>
-              <img
-                className="brand-mark"
-                src="/icons/icon-192.png"
-                alt="JOMO Guide"
-                width={44}
-                height={44}
-              />
+              <div className="flex items-start gap-1.5">
+                {flatBrandMark ? (
+                  <div className="brand-mark-flat" role="img" aria-label="JOMO Guide">
+                    <span>JOMO</span>
+                    <span>GUIDE</span>
+                  </div>
+                ) : (
+                  <img
+                    className="brand-mark"
+                    src="/icons/icon-192.png"
+                    alt="JOMO Guide"
+                    width={44}
+                    height={44}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="brand-mark-toggle"
+                  aria-pressed={flatBrandMark}
+                  aria-label="Toggle flat logo style"
+                  onClick={() => setFlatBrandMark((current) => !current)}
+                >
+                  <span className="brand-mark-toggle-swatch" aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <MissingOutCounter total={EVENTS.length} favorites={favoriteIds.length} />
             <p className="header-credits">

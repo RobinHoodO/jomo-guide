@@ -168,7 +168,7 @@ body {
 }
 
 .header-credits {
-  @apply text-[11px] font-bold leading-4;
+  @apply text-[13px] font-bold leading-4;
   color: rgba(242, 235, 217, 0.78);
 }
 
@@ -205,7 +205,7 @@ button:disabled {
 }
 
 .update-banner button {
-  @apply rounded-full px-2.5 py-1 text-[10px] font-black transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60;
+  @apply rounded-full px-2.5 py-1 text-[12px] font-black transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60;
   background: var(--pink);
   color: var(--cream);
 }
@@ -220,7 +220,7 @@ button:disabled {
 }
 
 .pull-to-refresh-indicator {
-  @apply pointer-events-none fixed left-1/2 top-2 z-40 inline-flex min-h-9 items-center gap-2 rounded-full px-3 text-[11px] font-black transition-all duration-200;
+  @apply pointer-events-none fixed left-1/2 top-2 z-40 inline-flex min-h-9 items-center gap-2 rounded-full px-3 text-[13px] font-black transition-all duration-200;
   top: calc(0.5rem + env(safe-area-inset-top));
   background: rgba(242, 235, 217, 0.94);
   color: var(--indigo);
@@ -262,7 +262,7 @@ button:disabled {
 }
 
 .section-kicker {
-  @apply text-[10px] font-black uppercase tracking-[0.16em];
+  @apply text-[12px] font-black uppercase tracking-[0.16em];
   color: currentColor;
 }
 
@@ -282,6 +282,42 @@ main section > div > h3 {
   border-bottom-left-radius: 1.05rem;
   border: 1px solid rgba(242, 235, 217, 0.35);
   box-shadow: 0 4px 12px rgba(7, 10, 30, 0.28);
+}
+
+.brand-mark-flat {
+  @apply flex h-11 w-11 shrink-0 flex-col items-center justify-center text-center leading-none;
+  font-family: var(--display-font);
+  font-weight: 800;
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: var(--cream);
+  background: var(--navy);
+  border-top-left-radius: 1.5rem;
+  border-top-right-radius: 0.95rem;
+  border-bottom-right-radius: 1.35rem;
+  border-bottom-left-radius: 1.05rem;
+  border: 1px solid rgba(242, 235, 217, 0.35);
+  box-shadow: 0 4px 12px rgba(7, 10, 30, 0.28);
+}
+
+.brand-mark-toggle {
+  @apply flex h-6 w-6 shrink-0 items-center justify-center self-start rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60;
+  background: var(--navy);
+  border: 1px solid rgba(242, 235, 217, 0.35);
+}
+
+.brand-mark-toggle[aria-pressed='true'] {
+  background: var(--cream);
+  border-color: var(--navy);
+}
+
+.brand-mark-toggle-swatch {
+  @apply h-3 w-3 rounded-full;
+  background: var(--cream);
+}
+
+.brand-mark-toggle[aria-pressed='true'] .brand-mark-toggle-swatch {
+  background: var(--navy);
 }
 
 .sparkle {
@@ -307,7 +343,7 @@ main section > div > h3 {
 }
 
 .chip {
-  @apply inline-flex min-h-8 shrink-0 snap-start items-center px-2 py-0.5 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply inline-flex min-h-8 shrink-0 snap-start items-center px-2 py-0.5 text-[12px] font-black leading-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: var(--cream);
   color: var(--indigo);
   border: 0;
@@ -324,13 +360,13 @@ main section > div > h3 {
 }
 
 .hour-select-label {
-  @apply inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black leading-[11px];
+  @apply inline-flex min-h-8 items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-black leading-[14px];
   background: rgba(242, 235, 217, 0.9);
   color: var(--indigo);
 }
 
 .hour-select {
-  @apply min-h-6 rounded-full px-1.5 text-[10px] font-black outline-none focus:ring-2 focus:ring-pink/35;
+  @apply min-h-6 rounded-full px-1.5 text-[12px] font-black outline-none focus:ring-2 focus:ring-pink/35;
   background: var(--cream);
   color: var(--indigo);
   border: 0;
@@ -352,7 +388,7 @@ main section > div > h3 {
 }
 
 .toggle-row {
-  @apply inline-flex min-h-8 items-center gap-1.5 text-[10px] font-black leading-[11px];
+  @apply inline-flex min-h-8 items-center gap-1.5 text-[12px] font-black leading-[14px];
   color: var(--cream);
 }
 
@@ -384,7 +420,7 @@ main section > div > h3 {
 }
 
 .map-location-note {
-  @apply rounded-full px-2 py-1 text-[10px] font-bold leading-4;
+  @apply rounded-full px-2 py-1 text-[12px] font-bold leading-4;
   background: rgba(242, 235, 217, 0.82);
   color: var(--pink);
   border: 1px solid rgba(224, 68, 126, 0.24);
@@ -397,7 +433,7 @@ main section > div > h3 {
 }
 
 .map-view-toggle button {
-  @apply min-h-8 rounded-full px-2 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply min-h-8 rounded-full px-2 text-[12px] font-black leading-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   color: var(--indigo);
 }
 
@@ -498,7 +534,7 @@ main section > div > h3 {
 }
 
 .shuffle-button {
-  @apply inline-flex min-h-8 shrink-0 items-center gap-1.5 px-2 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50;
+  @apply inline-flex min-h-8 shrink-0 items-center gap-1.5 px-2 text-[12px] font-black leading-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50;
   background: var(--cream);
   color: var(--indigo);
   border-radius: 999px;
@@ -516,7 +552,7 @@ main section > div > h3 {
 }
 
 .event-meta-row {
-  @apply flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px] leading-4 text-[var(--muted-indigo)];
+  @apply flex min-w-0 items-center gap-1.5 overflow-hidden text-[12px] leading-4 text-[var(--muted-indigo)];
   min-height: 1.35rem;
 }
 
@@ -546,7 +582,7 @@ main section > div > h3 {
 }
 
 .event-detail p > span:first-child {
-  @apply mb-0.5 block text-[10px] font-black uppercase text-[var(--muted-indigo)];
+  @apply mb-0.5 block text-[12px] font-black uppercase text-[var(--muted-indigo)];
 }
 
 .recurring-indicator {
@@ -556,7 +592,7 @@ main section > div > h3 {
 }
 
 .recurring-chip {
-  @apply inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-[12px] font-black leading-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: rgba(52, 55, 158, 0.08);
   color: var(--indigo);
   border: 1.5px solid rgba(52, 55, 158, 0.16);
@@ -573,7 +609,7 @@ main section > div > h3 {
 }
 
 .camp-chip {
-  @apply inline-flex min-h-8 items-center rounded-full px-2 text-[10px] font-black leading-[11px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply inline-flex min-h-8 items-center rounded-full px-2 text-[12px] font-black leading-[14px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: rgba(245, 194, 66, 0.42);
   color: var(--indigo);
   border: 1.5px solid rgba(224, 68, 126, 0.2);
@@ -585,7 +621,7 @@ main section > div > h3 {
 }
 
 .grid-badge {
-  @apply shrink-0 px-1.5 py-0.5 text-[10px] font-black leading-4 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply shrink-0 px-1.5 py-0.5 text-[12px] font-black leading-4 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: var(--yellow);
   color: var(--indigo);
   border-radius: 0.65rem 0.45rem 0.7rem 0.5rem;
@@ -597,19 +633,19 @@ main section > div > h3 {
 }
 
 .soft-badge {
-  @apply rounded-full px-1.5 py-0.5 text-[10px] font-bold;
+  @apply rounded-full px-1.5 py-0.5 text-[12px] font-bold;
   background: rgba(100, 185, 228, 0.28);
   color: var(--indigo);
 }
 
 .warning-badge {
-  @apply rounded-full px-1.5 py-0.5 text-[10px] font-black;
+  @apply rounded-full px-1.5 py-0.5 text-[12px] font-black;
   background: rgba(224, 68, 126, 0.16);
   color: #92224B;
 }
 
 .day-pill {
-  @apply sticky top-[13.5rem] z-10 inline-flex px-2 py-0.5 text-[10px] font-black leading-[11px];
+  @apply sticky top-[13.5rem] z-10 inline-flex px-2 py-0.5 text-[12px] font-black leading-[14px];
   background: var(--cream);
   color: var(--indigo);
   border-radius: 999px;
@@ -808,7 +844,7 @@ main section > div > h3 {
 }
 
 .legend-item {
-  @apply flex min-w-0 items-center gap-1.5 text-[10px] font-bold leading-4;
+  @apply flex min-w-0 items-center gap-1.5 text-[12px] font-bold leading-4;
   color: var(--indigo);
 }
 
@@ -860,7 +896,7 @@ main section > div > h3 {
 }
 
 .legend-type {
-  @apply rounded-full px-2 py-0.5 text-[10px] font-black leading-4;
+  @apply rounded-full px-2 py-0.5 text-[12px] font-black leading-4;
   background: rgba(52, 55, 158, 0.08);
   color: var(--indigo);
 }
@@ -1152,5 +1188,44 @@ main section > div > h3 {
     animation: none !important;
     stroke-opacity: 1 !important;
     stroke-width: 5px !important;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 1rem;
+    background: #ffffff;
+    color: #111111;
+  }
+
+  .print-area .text-cream,
+  .print-area .section-kicker,
+  .print-area .display-heading {
+    color: #111111 !important;
+    text-shadow: none !important;
+  }
+
+  .print-area .event-card,
+  .print-area .panel-card {
+    background: #ffffff;
+    color: #111111;
+    box-shadow: none;
+    border: 1px solid #cccccc;
+  }
+
+  .print-download-btn {
+    display: none;
   }
 }

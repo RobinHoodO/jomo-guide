@@ -24,10 +24,23 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
   const grouped = groupByDay(favoriteEvents);
 
   return (
-    <div className="space-y-6">
+    <div className="print-area space-y-6">
       <section>
-        <p className="section-kicker text-cream">My Schedule</p>
-        <h2 className="display-heading mt-0.5 text-lg">The chosen few</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="section-kicker text-cream">My Schedule</p>
+            <h2 className="display-heading mt-0.5 text-lg">The chosen few</h2>
+          </div>
+          {favoriteEvents.length ? (
+            <button
+              type="button"
+              className="print-download-btn shuffle-button"
+              onClick={() => window.print()}
+            >
+              Download PDF
+            </button>
+          ) : null}
+        </div>
         <p className="mt-1 max-w-xl text-sm leading-5 text-cream">
           A star is a maybe with dignity. Change your mind whenever the dust says so.
         </p>
