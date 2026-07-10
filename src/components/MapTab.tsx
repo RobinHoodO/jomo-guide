@@ -117,63 +117,100 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
-function PlaceMarker({ place }: { place: (typeof PLACES)[number] }) {
+function PlaceGlyph({ icon }: { icon: NonNullable<Place['icon']> }) {
+  switch (icon) {
+    case 'toilet':
+      return (
+        <>
+          <path d="M-3.4 -3.6h6.8v3.4a1 1 0 0 1-1 1h-4.8a1 1 0 0 1-1-1Z" className="map-glyph-fill" />
+          <path d="M-3.4 -0.2v3.6M3.4 -0.2v3.6M-3.4 3.4h6.8" className="map-glyph-stroke" />
+        </>
+      );
+    case 'trash':
+      return (
+        <>
+          <path d="M-3.6 -2.2h7.2M-2.6 -4h5.2M-2.8 -1.2l.5 5.2h4.6l.5-5.2" className="map-glyph-stroke" />
+          <path d="M-0.8 -0.6v3.4M1 -0.6v3.4" className="map-glyph-stroke-thin" />
+        </>
+      );
+    case 'water':
+      return <path d="M0 -4.8C2.5-1.7 3.5.1 3.5 2a3.5 3.5 0 0 1-7 0c0-1.9 1-3.7 3.5-6.8Z" className="map-glyph-fill" />;
+    case 'info':
+      return (
+        <>
+          <circle cy="-3.3" r="1" className="map-glyph-fill" />
+          <path d="M0 -0.9v5" className="map-glyph-stroke" />
+        </>
+      );
+    case 'sanctuary':
+      return <path d="M-1.5 -4.2h3v2.7h2.7v3h-2.7v2.7h-3v-2.7h-2.7v-3h2.7Z" className="map-glyph-fill" />;
+    case 'gate':
+      return (
+        <>
+          <path d="M-2.6 -0.6v-1.6a2.6 2.6 0 0 1 5.2 0v1.6" className="map-glyph-stroke" />
+          <rect x="-3.4" y="-0.8" width="6.8" height="5.6" rx="1" className="map-glyph-fill" />
+          <circle cy="1.4" r="0.9" className="map-glyph-hole" />
+          <path d="M0 1.9v1.5" className="map-glyph-hole-stroke" />
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+function PlaceMarker({ place }: { place: Place }) {
   const position = markerPosition(place.grid);
   if (!position) return null;
 
-  if (place.kind === 'safety') {
-    return (
-      <g>
-        <circle cx={position.x} cy={position.y} r="8" className="map-safety-marker" />
-        <path
-          d={`M${position.x - 3.5} ${position.y}h7M${position.x} ${position.y - 3.5}v7`}
-          className="map-safety-cross"
-        />
-      </g>
-    );
-  }
-
-  if (place.kind === 'facility') {
-    const icon = place.icon || 'info';
-    return (
-      <g className={`map-place-facility is-${icon}`} transform={`translate(${position.x} ${position.y})`}>
-        <circle r="7" className="map-facility-dot" />
-        {icon === 'toilet' ? (
-          <>
-            <circle cx="-1.8" cy="-1.6" r="2.4" className="map-facility-glyph-fill" />
-            <path d="M1.6 -4.2v8.4M1.6 -4.2h2.7v8.4H1.6" className="map-facility-glyph" />
-            <path d="M-4.2 3.4h5.6" className="map-facility-glyph" />
-          </>
-        ) : null}
-        {icon === 'trash' ? (
-          <>
-            <path d="M-3.6 -2.2h7.2M-2.6 -4h5.2M-2.8 -1.2l.5 5.2h4.6l.5-5.2" className="map-facility-glyph" />
-            <path d="M-0.8 -1.1v4.2M1 -1.1v4.2" className="map-facility-glyph-thin" />
-          </>
-        ) : null}
-        {icon === 'water' ? <path d="M0 -4.8C2.5-1.7 3.5.1 3.5 2a3.5 3.5 0 0 1-7 0c0-1.9 1-3.7 3.5-6.8Z" className="map-facility-glyph-fill" /> : null}
-        {icon === 'info' ? (
-          <>
-            <circle cy="-3.3" r="0.9" className="map-facility-glyph-fill" />
-            <path d="M0 -0.8v5" className="map-facility-glyph" />
-          </>
-        ) : null}
-      </g>
-    );
-  }
-
   return (
-    <rect
-      x={position.x - 5}
-      y={position.y - 5}
-      width="10"
-      height="10"
-      rx="2"
-      transform={`rotate(45 ${position.x} ${position.y})`}
-      className="map-building-marker"
-    />
+    <g className="map-place" transform={`translate(${position.x} ${position.y})`}>
+      <circle r="7.5" className="map-place-dot" />
+      {place.number != null ? (
+        <text y="2.9" textAnchor="middle" className="map-place-number">
+          {place.number}
+        </text>
+      ) : place.icon ? (
+        <PlaceGlyph icon={place.icon} />
+      ) : null}
+    </g>
   );
 }
+
+function PlaceLegendIcon({ place }: { place: Place }) {
+  return (
+    <svg viewBox="-9 -9 18 18" aria-hidden="true">
+      <circle r="7.5" className="map-place-dot" />
+      {place.number != null ? (
+        <text y="2.9" textAnchor="middle" className="map-place-number">
+          {place.number}
+        </text>
+      ) : place.icon ? (
+        <PlaceGlyph icon={place.icon} />
+      ) : null}
+    </svg>
+  );
+}
+
+// one legend row per key: the 4 numbered buildings, then one per facility icon
+const PLACE_LEGEND: Array<{ label: string; sample: Place }> = (() => {
+  const byIcon = (icon: Place['icon']) => PLACES.find((place) => place.icon === icon);
+  const rows: Array<{ label: string; sample: Place }> = PLACES.filter((place) => place.number != null).map(
+    (place) => ({ label: place.name, sample: place })
+  );
+  const icons: Array<[Place['icon'], string]> = [
+    ['sanctuary', 'Sanctuary'],
+    ['gate', 'Threshold (gate)'],
+    ['toilet', 'Toilets'],
+    ['water', 'Water'],
+    ['info', 'Infopoint WTF'],
+    ['trash', 'Trash containers']
+  ];
+  for (const [icon, label] of icons) {
+    const sample = byIcon(icon);
+    if (sample) rows.push({ label, sample });
+  }
+  return rows;
+})();
 
 export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
@@ -512,28 +549,14 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
 
           {mapView === 'places' ? (
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {PLACES.map((place) => (
-                <div key={place.name} className="legend-item">
-                  <span
-                    className={`legend-place ${place.kind === 'safety' ? 'is-safety' : ''} ${
-                      place.kind === 'facility' ? `is-${place.icon || 'info'}` : ''
-                    }`}
-                  />
-                  <span className="truncate">{place.name}</span>
+              {PLACE_LEGEND.map((entry) => (
+                <div key={entry.label} className="place-legend-item">
+                  <PlaceLegendIcon place={entry.sample} />
+                  <span className="truncate">{entry.label}</span>
                 </div>
               ))}
             </div>
           ) : null}
-
-          <div className="flex flex-wrap gap-1.5">
-            {mapView === 'places' ? (
-              <>
-                <span className="legend-type">Buildings</span>
-                <span className="legend-type is-safety">Safety</span>
-                <span className="legend-type is-facility">Facilities</span>
-              </>
-            ) : null}
-          </div>
 
           <p className="text-xs leading-5 text-[var(--muted-indigo)]">{MAP_META.note}</p>
           {mapView === 'places' ? (

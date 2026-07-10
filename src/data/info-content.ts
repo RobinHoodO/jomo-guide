@@ -278,30 +278,33 @@ export const PLAZAS: Plaza[] = [
   { name: 'Lakeside plaza', grid: 'H21', nudge: { x: -8, y: 7 } },
 ];
 
+export type PlaceIcon = 'info' | 'toilet' | 'trash' | 'water' | 'sanctuary' | 'gate';
+
 export type Place = {
   name: string;
   grid: string;
-  kind: 'building' | 'facility' | 'safety';
-  icon?: 'info' | 'toilet' | 'trash' | 'water';
+  // numbered = the 4 key buildings (shown as a numbered black disc, like the PDF)
+  number?: number;
+  icon?: PlaceIcon;
 };
 
 export const PLACES: Place[] = [
-  { name: 'The Villa', grid: 'K14', kind: 'building' },
-  { name: 'The Barn', grid: 'L19', kind: 'building' },
-  { name: 'The Machinehall', grid: 'M19', kind: 'building' },
-  { name: 'HQ (Clowns, Helm)', grid: 'K20', kind: 'safety' },
-  { name: 'Sanctuary', grid: 'K13', kind: 'safety' },
-  { name: 'Threshold (gate)', grid: 'L4', kind: 'building' },
-  { name: 'Infopoint WTF', grid: 'M20', kind: 'facility', icon: 'info' },
-  { name: 'Water', grid: 'L21', kind: 'facility', icon: 'water' },
-  { name: 'Toilet G7', grid: 'G7', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet M6', grid: 'M6', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet P8', grid: 'P8', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet M14', grid: 'M14', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet O19', grid: 'O19', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet N21', grid: 'N21', kind: 'facility', icon: 'toilet' },
-  { name: 'Toilet R21', grid: 'R21', kind: 'facility', icon: 'toilet' },
-  { name: 'Trash containers', grid: 'L15', kind: 'facility', icon: 'trash' },
+  { name: 'The Villa', grid: 'K14', number: 1 },
+  { name: 'The Barn', grid: 'L19', number: 2 },
+  { name: 'The Machinehall', grid: 'M19', number: 3 },
+  { name: 'HQ (Clowns, Helm)', grid: 'K20', number: 4 },
+  { name: 'Sanctuary', grid: 'K13', icon: 'sanctuary' },
+  { name: 'Threshold (gate)', grid: 'L4', icon: 'gate' },
+  { name: 'Infopoint WTF', grid: 'M20', icon: 'info' },
+  { name: 'Water', grid: 'L21', icon: 'water' },
+  { name: 'Toilet G7', grid: 'G7', icon: 'toilet' },
+  { name: 'Toilet M6', grid: 'M6', icon: 'toilet' },
+  { name: 'Toilet P8', grid: 'P8', icon: 'toilet' },
+  { name: 'Toilet M14', grid: 'M14', icon: 'toilet' },
+  { name: 'Toilet O19', grid: 'O19', icon: 'toilet' },
+  { name: 'Toilet N21', grid: 'N21', icon: 'toilet' },
+  { name: 'Toilet R21', grid: 'R21', icon: 'toilet' },
+  { name: 'Trash containers', grid: 'L15', icon: 'trash' },
 ];
 
 export const MAP_META = {

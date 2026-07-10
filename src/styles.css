@@ -675,66 +675,46 @@ main.is-plain-bg .ambient-blobs {
   fill: var(--indigo);
 }
 
-.map-safety-marker {
-  fill: var(--pink);
-  stroke: var(--cream);
-  stroke-width: 1.6;
-}
-
-.map-safety-cross {
-  stroke: var(--cream);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.map-building-marker {
-  fill: var(--sky);
-  stroke: var(--indigo);
+/* Places: uniform black disc + white glyph, matching the official PDF map */
+.map-place-dot {
+  fill: #14151f;
+  stroke: #ffffff;
   stroke-width: 1.4;
 }
 
-.map-facility-marker {
-  fill: var(--leaf);
-  stroke: var(--indigo);
-  stroke-width: 1.4;
+.map-place-number {
+  font: 900 8.5px var(--font-sans);
+  fill: #ffffff;
 }
 
-.map-facility-dot {
-  fill: var(--leaf);
-  stroke: var(--indigo);
-  stroke-width: 1.35;
+.map-glyph-fill {
+  fill: #ffffff;
 }
 
-.map-place-facility.is-toilet .map-facility-dot {
-  fill: #F291B2;
-}
-
-.map-place-facility.is-trash .map-facility-dot {
-  fill: #E88A2E;
-}
-
-.map-place-facility.is-water .map-facility-dot {
-  fill: var(--sky);
-}
-
-.map-facility-glyph,
-.map-facility-glyph-thin {
+.map-glyph-stroke {
   fill: none;
-  stroke: var(--indigo);
+  stroke: #ffffff;
+  stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.map-facility-glyph {
-  stroke-width: 1.35;
+.map-glyph-stroke-thin {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 0.85;
+  stroke-linecap: round;
 }
 
-.map-facility-glyph-thin {
-  stroke-width: 0.9;
+.map-glyph-hole {
+  fill: #14151f;
 }
 
-.map-facility-glyph-fill {
-  fill: var(--indigo);
+.map-glyph-hole-stroke {
+  fill: none;
+  stroke: #14151f;
+  stroke-width: 1.1;
+  stroke-linecap: round;
 }
 
 .map-you-marker {
@@ -842,6 +822,15 @@ main.is-plain-bg .ambient-blobs {
 .legend-item span:first-child {
   @apply h-3 w-3 shrink-0 rounded-full;
   border-width: 1.5px;
+}
+
+.place-legend-item {
+  @apply flex min-w-0 items-center gap-1.5 text-[12px] font-bold leading-4;
+  color: var(--indigo);
+}
+
+.place-legend-item svg {
+  @apply h-4 w-4 shrink-0;
 }
 
 .legend-plaza {
