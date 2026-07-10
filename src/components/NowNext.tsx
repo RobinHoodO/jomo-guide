@@ -1,5 +1,16 @@
+import { useState } from 'react';
 import { EventCard } from './EventCard';
 import { type EventItem, getNow, isHappeningNow, isStartingSoon } from '../lib/events';
+
+const STORAGE_KEY = 'jomo:nownext-collapsed';
+
+function readCollapsed() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 type NowNextProps = {
   events: EventItem[];
@@ -17,13 +28,32 @@ export function NowNext({ events, isFavorite, toggleFavorite, onSelectGrid, onSe
     .sort((a, b) => String(a.startsAt).localeCompare(String(b.startsAt)))
     .slice(0, 4);
 
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const total = happening.length + soon.length;
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? '1' : '0');
+      } catch {
+        /* storage unavailable — keep in-memory state */
+      }
+      return next;
+    });
+  };
+
   return (
     <section className="space-y-2.5">
-      <div>
-        <p className="section-kicker text-cream">Now / Next</p>
-        <h2 className="display-heading mt-0.5 text-base">The current little river</h2>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="section-kicker text-cream">Now / Next</p>
+          <h2 className="display-heading mt-0.5 text-base">The current little river</h2>
+        </div>
+        <button type="button" className="shuffle-button" onClick={toggleCollapsed} aria-expanded={!collapsed}>
+          {collapsed ? `Show${total ? ` (${total})` : ''}` : 'Hide'}
+        </button>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${collapsed ? 'hidden' : ''}`}>
         <NowNextColumn
           title="Happening now"
           events={happening}
