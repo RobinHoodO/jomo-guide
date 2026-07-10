@@ -8,6 +8,7 @@ import {
   getRecurringSiblings
 } from '../lib/events';
 import { campForEvent } from '../lib/links';
+import { downloadEventIcs } from '../lib/ics';
 
 type EventCardHeadingLevel = 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
@@ -37,6 +38,24 @@ function StarIcon({ filled }: { filled: boolean }) {
       strokeLinejoin="round"
     >
       <path d="M12 3.25 14.75 8.82l6.15.9-4.45 4.34 1.05 6.12L12 17.29l-5.5 2.89 1.05-6.12L3.1 9.72l6.15-.9L12 3.25Z" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 3v3M16 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+      <path d="M12 12v5M9.5 14.5 12 17l2.5-2.5" />
     </svg>
   );
 }
@@ -139,18 +158,32 @@ export function EventCard({
             </TitleHeading>
           </button>
         </div>
-        <button
-          type="button"
-          className={`icon-button ${isFavorite ? 'is-active' : ''}`}
-          onClick={(clickEvent) => {
-            clickEvent.stopPropagation();
-            onToggleFavorite(event.id);
-          }}
-          aria-label={isFavorite ? 'Remove from My Schedule' : 'Add to My Schedule'}
-          title={isFavorite ? 'Let this one go' : 'Keep this one'}
-        >
-          <StarIcon filled={isFavorite} />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              downloadEventIcs(event);
+            }}
+            aria-label="Add to your calendar (.ics)"
+            title="Add to your calendar"
+          >
+            <CalendarIcon />
+          </button>
+          <button
+            type="button"
+            className={`icon-button ${isFavorite ? 'is-active' : ''}`}
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onToggleFavorite(event.id);
+            }}
+            aria-label={isFavorite ? 'Remove from My Schedule' : 'Add to My Schedule'}
+            title={isFavorite ? 'Let this one go' : 'Keep this one'}
+          >
+            <StarIcon filled={isFavorite} />
+          </button>
+        </div>
       </div>
 
       {isExpanded ? (
