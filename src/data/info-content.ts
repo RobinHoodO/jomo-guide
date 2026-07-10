@@ -290,21 +290,21 @@ export type Place = {
 
 export const PLACES: Place[] = [
   { name: 'The Villa', grid: 'K14', number: 1 },
-  { name: 'The Barn', grid: 'L19', number: 2 },
-  { name: 'The Machinehall', grid: 'M19', number: 3 },
-  { name: 'HQ (Clowns, Helm)', grid: 'K20', number: 4 },
+  { name: 'The Barn', grid: 'K18', number: 2 },
+  { name: 'The Machinehall', grid: 'M18', number: 3 },
+  { name: 'HQ (Clowns, Helm)', grid: 'J20', number: 4 },
   { name: 'Sanctuary', grid: 'K13', icon: 'sanctuary' },
-  { name: 'Threshold (gate)', grid: 'L4', icon: 'gate' },
+  { name: 'Threshold (gate)', grid: 'L5', icon: 'gate' },
   { name: 'Infopoint WTF', grid: 'M20', icon: 'info' },
   { name: 'Water', grid: 'L21', icon: 'water' },
   { name: 'Toilet G7', grid: 'G7', icon: 'toilet' },
-  { name: 'Toilet M6', grid: 'M6', icon: 'toilet' },
-  { name: 'Toilet P8', grid: 'P8', icon: 'toilet' },
+  { name: 'Toilet L6', grid: 'L6', icon: 'toilet' },
+  { name: 'Toilet O9', grid: 'O9', icon: 'toilet' },
   { name: 'Toilet M14', grid: 'M14', icon: 'toilet' },
   { name: 'Toilet O19', grid: 'O19', icon: 'toilet' },
   { name: 'Toilet N21', grid: 'N21', icon: 'toilet' },
   { name: 'Toilet R21', grid: 'R21', icon: 'toilet' },
-  { name: 'Trash containers', grid: 'L15', icon: 'trash' },
+  { name: 'Trash containers', grid: 'M15', icon: 'trash' },
 ];
 
 export const MAP_META = {

@@ -120,10 +120,13 @@ function Sparkle({ className = '' }: { className?: string }) {
 function PlaceGlyph({ icon }: { icon: NonNullable<Place['icon']> }) {
   switch (icon) {
     case 'toilet':
+      // toilet-paper roll (front view): body + top rim + hole + hanging sheet
       return (
         <>
-          <path d="M-3.4 -3.6h6.8v3.4a1 1 0 0 1-1 1h-4.8a1 1 0 0 1-1-1Z" className="map-glyph-fill" />
-          <path d="M-3.4 -0.2v3.6M3.4 -0.2v3.6M-3.4 3.4h6.8" className="map-glyph-stroke" />
+          <path d="M-3.3 -2.6v5.1a3.3 1.5 0 0 0 6.6 0v-5.1" className="map-glyph-fill" />
+          <ellipse cy="-2.6" rx="3.3" ry="1.5" className="map-glyph-fill" />
+          <ellipse cy="-2.6" rx="1.3" ry="0.6" className="map-glyph-hole" />
+          <path d="M3.3 -1v4.2h1.5v-3.9" className="map-glyph-fill" />
         </>
       );
     case 'trash':
@@ -164,7 +167,7 @@ function PlaceMarker({ place }: { place: Place }) {
 
   return (
     <g className="map-place" transform={`translate(${position.x} ${position.y})`}>
-      <circle r="7.5" className="map-place-dot" />
+      <circle r="8.5" className="map-place-dot" />
       {place.number != null ? (
         <text y="2.9" textAnchor="middle" className="map-place-number">
           {place.number}
@@ -179,7 +182,7 @@ function PlaceMarker({ place }: { place: Place }) {
 function PlaceLegendIcon({ place }: { place: Place }) {
   return (
     <svg viewBox="-9 -9 18 18" aria-hidden="true">
-      <circle r="7.5" className="map-place-dot" />
+      <circle r="8.5" className="map-place-dot" />
       {place.number != null ? (
         <text y="2.9" textAnchor="middle" className="map-place-number">
           {place.number}
