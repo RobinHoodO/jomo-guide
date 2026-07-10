@@ -150,11 +150,9 @@ export default function App() {
                 className={tab === 'schedule' ? 'is-active' : ''}
                 onClick={() => setTab('schedule')}
               >
+                {favoriteIds.length > 0 ? <span className="tab-badge">{favoriteIds.length}</span> : null}
                 <TabIcon name="schedule" />
-                <span className="tab-label">
-                  Favourites
-                  {favoriteIds.length > 0 ? <span className="tab-badge">{favoriteIds.length}</span> : null}
-                </span>
+                <span>Favourites</span>
               </button>
               <button
                 type="button"

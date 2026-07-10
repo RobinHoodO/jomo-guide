@@ -106,6 +106,7 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
                       onToggleFavorite={toggleFavorite}
                       onSelectGrid={onSelectGrid}
                       onSelectCamp={onSelectCamp}
+                      showCalendarExport
                       note={
                         group.events.some((other) => hasOverlap(event, other))
                           ? 'This one shares a window with another favorite.'

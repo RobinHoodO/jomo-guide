@@ -441,10 +441,15 @@ main.is-plain-bg .ambient-blobs {
 }
 
 .tabbar button {
-  @apply inline-flex min-h-9 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[9px] font-black leading-none transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply relative inline-flex min-h-9 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-black leading-none transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: var(--cream);
   color: var(--indigo);
   border-radius: 1.1rem;
+}
+
+.tabbar button > span:last-child {
+  @apply w-full text-center leading-none;
+  white-space: nowrap;
 }
 
 .tabbar button.is-active {
@@ -452,13 +457,10 @@ main.is-plain-bg .ambient-blobs {
   color: var(--cream);
 }
 
-.tab-label {
-  @apply inline-flex min-w-0 items-start justify-center gap-0.5;
-}
-
 .tab-badge {
-  @apply inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[8px] font-black leading-none;
-  margin-top: -0.35rem;
+  @apply absolute inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[8px] font-black leading-none;
+  top: 1px;
+  right: 5px;
   background: var(--yellow);
   color: var(--navy);
   box-shadow: 0 0 0 1px rgba(22, 27, 51, 0.12);

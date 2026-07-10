@@ -23,6 +23,7 @@ type EventCardProps = {
   muted?: boolean;
   note?: string;
   headingLevel?: EventCardHeadingLevel;
+  showCalendarExport?: boolean;
 };
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -95,7 +96,8 @@ export function EventCard({
   onSelectCamp,
   muted = false,
   note,
-  headingLevel = 'h3'
+  headingLevel = 'h3',
+  showCalendarExport = false
 }: EventCardProps) {
   const visibleFlags = FLAG_FILTERS.filter(({ key }) => event.flags[key]);
   const warnings = visibleFlags.filter(({ key }) => WARNING_FLAGS.includes(key));
@@ -159,18 +161,20 @@ export function EventCard({
           </button>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            className="icon-button"
-            onClick={(clickEvent) => {
-              clickEvent.stopPropagation();
-              downloadEventIcs(event);
-            }}
-            aria-label="Add to your calendar (.ics)"
-            title="Add to your calendar"
-          >
-            <CalendarIcon />
-          </button>
+          {showCalendarExport ? (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                downloadEventIcs(event);
+              }}
+              aria-label="Add to your calendar (.ics)"
+              title="Add to your calendar"
+            >
+              <CalendarIcon />
+            </button>
+          ) : null}
           <button
             type="button"
             className={`icon-button ${isFavorite ? 'is-active' : ''}`}
