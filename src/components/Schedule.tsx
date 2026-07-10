@@ -2,10 +2,15 @@ import { EventCard } from './EventCard';
 import {
   EVENTS,
   dayIsLight,
+  formatTime,
   groupByDay,
   hasOverlap,
   type EventItem
 } from '../lib/events';
+
+function joinParts(parts: (string | undefined | null)[]) {
+  return parts.map((p) => p?.trim()).filter(Boolean).join(' · ');
+}
 
 type ScheduleProps = {
   favoriteIds: string[];
@@ -24,8 +29,8 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
   const grouped = groupByDay(favoriteEvents);
 
   return (
-    <div className="print-area space-y-6">
-      <section>
+    <div className="space-y-6">
+      <section className="screen-only">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="section-kicker text-cream">My Schedule</p>
@@ -46,8 +51,41 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
         </p>
       </section>
 
+      {favoriteEvents.length ? (
+        <div className="print-schedule" aria-hidden="true">
+          <div className="print-schedule-head">
+            <h1>My JOMO Schedule</h1>
+            <p>Borderland 2026 · {favoriteEvents.length} pick{favoriteEvents.length === 1 ? '' : 's'}</p>
+          </div>
+          {grouped.map((group) => (
+            <section key={group.day} className="print-day">
+              <h2 className="print-day-title">{group.day}</h2>
+              <ul className="print-list">
+                {group.events.map((event) => {
+                  const sub = joinParts([
+                    event.category,
+                    event.host,
+                    event.location.prose || event.location.raw
+                  ]);
+                  return (
+                    <li key={event.id} className="print-row">
+                      <p className="print-row-main">
+                        <span className="print-time">{formatTime(event)}</span>
+                        {event.location.grid ? <span className="print-grid">{event.location.grid}</span> : null}
+                        <span className="print-title">{event.title}</span>
+                      </p>
+                      {sub ? <p className="print-row-sub">{sub}</p> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : null}
+
       {favoriteEvents.length || missingIds.length ? (
-        <div className="space-y-5">
+        <div className="screen-only space-y-5">
           {grouped.map((group) => {
             const hasConflict = group.events.some((event, index) =>
               group.events.slice(index + 1).some((other) => hasOverlap(event, other))
@@ -97,7 +135,7 @@ export function Schedule({ favoriteIds, isFavorite, toggleFavorite, onSelectGrid
           ))}
         </div>
       ) : (
-        <p className="panel-card text-base text-[var(--muted-indigo)]">
+        <p className="screen-only panel-card text-base text-[var(--muted-indigo)]">
           No stars yet. Your future self currently has excellent boundaries.
         </p>
       )}

@@ -284,22 +284,6 @@ main section > div > h3 {
   box-shadow: 0 4px 12px rgba(7, 10, 30, 0.28);
 }
 
-.brand-mark-flat {
-  @apply flex h-11 w-11 shrink-0 flex-col items-center justify-center text-center leading-none;
-  font-family: var(--display-font);
-  font-weight: 800;
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  color: var(--cream);
-  background: var(--navy);
-  border-top-left-radius: 1.5rem;
-  border-top-right-radius: 0.95rem;
-  border-bottom-right-radius: 1.35rem;
-  border-bottom-left-radius: 1.05rem;
-  border: 1px solid rgba(242, 235, 217, 0.35);
-  box-shadow: 0 4px 12px rgba(7, 10, 30, 0.28);
-}
-
 .brand-mark-toggle {
   @apply flex h-6 w-6 shrink-0 items-center justify-center self-start rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60;
   background: var(--navy);
@@ -318,6 +302,11 @@ main section > div > h3 {
 
 .brand-mark-toggle[aria-pressed='true'] .brand-mark-toggle-swatch {
   background: var(--navy);
+}
+
+/* plain-background mode: drop the drifting pastel field, leave flat poster navy */
+main.is-plain-bg .ambient-blobs {
+  display: none;
 }
 
 .sparkle {
@@ -1191,41 +1180,113 @@ main section > div > h3 {
   }
 }
 
+/* condensed schedule rendered only when printing / saving to PDF */
+.print-schedule {
+  display: none;
+}
+
 @media print {
   body * {
     visibility: hidden;
   }
 
-  .print-area,
-  .print-area * {
+  .print-schedule,
+  .print-schedule * {
     visibility: visible;
   }
 
-  .print-area {
+  .print-schedule {
+    display: block;
     position: absolute;
     inset: 0;
     margin: 0;
-    padding: 1rem;
+    padding: 0.6cm 0.7cm;
     background: #ffffff;
-    color: #111111;
+    color: #14151f;
+    font-family: var(--font-sans);
   }
 
-  .print-area .text-cream,
-  .print-area .section-kicker,
-  .print-area .display-heading {
-    color: #111111 !important;
-    text-shadow: none !important;
+  .print-schedule-head {
+    border-bottom: 2px solid #14151f;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
   }
 
-  .print-area .event-card,
-  .print-area .panel-card {
-    background: #ffffff;
-    color: #111111;
-    box-shadow: none;
-    border: 1px solid #cccccc;
+  .print-schedule-head h1 {
+    font-family: var(--display-font);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.1;
   }
 
-  .print-download-btn {
-    display: none;
+  .print-schedule-head p {
+    font-size: 10px;
+    color: #555a6b;
+    margin-top: 1px;
+  }
+
+  .print-day {
+    break-inside: avoid;
+    margin-top: 9px;
+  }
+
+  .print-day-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #34379e;
+    border-bottom: 1px solid #d3d5e0;
+    padding-bottom: 2px;
+    margin-bottom: 3px;
+  }
+
+  .print-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-row {
+    break-inside: avoid;
+    padding: 2px 0;
+    border-bottom: 1px dotted #d8dae2;
+  }
+
+  .print-row-main {
+    font-size: 11px;
+    line-height: 1.25;
+    color: #14151f;
+  }
+
+  .print-time {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    margin-right: 5px;
+  }
+
+  .print-grid {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 9px;
+    background: #eceef6;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-right: 5px;
+  }
+
+  .print-title {
+    font-weight: 700;
+  }
+
+  .print-row-sub {
+    font-size: 9.5px;
+    line-height: 1.2;
+    color: #555a6b;
+    margin-top: 1px;
+  }
+
+  .screen-only {
+    display: none !important;
   }
 }

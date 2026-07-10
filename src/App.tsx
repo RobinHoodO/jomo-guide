@@ -43,7 +43,7 @@ export default function App() {
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [flatBrandMark, setFlatBrandMark] = useState(false);
+  const [plainBg, setPlainBg] = useState(false);
   const toastTimer = useRef<number | null>(null);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
@@ -89,7 +89,7 @@ export default function App() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-navy text-cream">
+    <main className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}>
       <UpdateBanner />
       <div className="ambient-blobs" aria-hidden="true">
         <div className="ambient-blob ambient-blob-1" />
@@ -113,26 +113,20 @@ export default function App() {
                 </p>
               </div>
               <div className="flex items-start gap-1.5">
-                {flatBrandMark ? (
-                  <div className="brand-mark-flat" role="img" aria-label="JOMO Guide">
-                    <span>JOMO</span>
-                    <span>GUIDE</span>
-                  </div>
-                ) : (
-                  <img
-                    className="brand-mark"
-                    src="/icons/icon-192.png"
-                    alt="JOMO Guide"
-                    width={44}
-                    height={44}
-                  />
-                )}
+                <img
+                  className="brand-mark"
+                  src="/icons/icon-192.png"
+                  alt="JOMO Guide"
+                  width={44}
+                  height={44}
+                />
                 <button
                   type="button"
                   className="brand-mark-toggle"
-                  aria-pressed={flatBrandMark}
-                  aria-label="Toggle flat logo style"
-                  onClick={() => setFlatBrandMark((current) => !current)}
+                  aria-pressed={plainBg}
+                  aria-label={plainBg ? 'Show colorful background' : 'Use plain blue background'}
+                  title={plainBg ? 'Colorful background' : 'Plain blue background'}
+                  onClick={() => setPlainBg((current) => !current)}
                 >
                   <span className="brand-mark-toggle-swatch" aria-hidden="true" />
                 </button>
