@@ -16,7 +16,7 @@ type CampSelection = { id: string; token: number };
 function TabIcon({ name }: { name: Tab }) {
   const paths = {
     program: <path d="M4 5h16M4 12h16M4 19h10" />,
-    schedule: <path d="M8 3v4M16 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />,
+    schedule: <path d="M12 3.25 14.75 8.82l6.15.9-4.45 4.34 1.05 6.12L12 17.29l-5.5 2.89 1.05-6.12L3.1 9.72l6.15-.9L12 3.25Z" />,
     map: <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15" />,
     camps: <path d="M12 4 3 20h18L12 4Zm0 0v16" />,
     info: <path d="M12 17v-6m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -152,7 +152,7 @@ export default function App() {
               >
                 <TabIcon name="schedule" />
                 <span className="tab-label">
-                  Schedule
+                  Favourites
                   {favoriteIds.length > 0 ? <span className="tab-badge">{favoriteIds.length}</span> : null}
                 </span>
               </button>
