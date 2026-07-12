@@ -33152,6 +33152,38 @@
     "sortMinutes": 840
   },
   {
+    "id": "fri-24-july-invisible-touches-14-00",
+    "title": "Invisible Touches",
+    "host": "",
+    "location": {
+      "raw": "Club SIN, grid square N19",
+      "grid": "N19",
+      "prose": "Club SIN"
+    },
+    "category": "Workshop/Class",
+    "vibes": "🦍 Adults only · 🖤 Sex positive",
+    "day": "Fri. 24 July",
+    "dayDate": "2026-07-24",
+    "start": "14:00",
+    "end": "15:30",
+    "description": "Invisible Touches is a guided exploration of touch with anonymous partners. This is a slow and connecting experience. Through a series of exercises, we'll awaken sensitivity and curiosity, gradually deepening the experience of giving and receiving touch. In the final phase, participants are invited to explore anonymous touch encounters, offering and receiving touch while staying connected to their own desires and actively setting boundaries through verbal and non-verbal consent. We'll close by coming back together as a group to land the experience.",
+    "comments": "",
+    "flags": {
+      "kid": false,
+      "sexPositive": true,
+      "queer": false,
+      "adult": true,
+      "sober": false,
+      "warnSensory": false,
+      "warnTriggering": false
+    },
+    "startsAt": "2026-07-24T14:00:00",
+    "endsAt": "2026-07-24T15:30:00",
+    "allDay": false,
+    "timeTBD": false,
+    "sortMinutes": 840
+  },
+  {
     "id": "fri-24-july-laughter-meditation-14-00",
     "title": "Laughter Meditation",
     "host": "Fanny-nati / Pink Parachute",
