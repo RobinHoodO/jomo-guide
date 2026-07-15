@@ -38910,5 +38910,37 @@
     "allDay": false,
     "timeTBD": false,
     "sortMinutes": 660
+  },
+  {
+    "id": "wed-22-july-mapping-the-river-of-your-sex-life-15-30",
+    "title": "Mapping the River of Your Sex Life",
+    "host": "Pink Parachute",
+    "location": {
+      "raw": "Lowlands, grid square P13. The Velvet Lounge, behind Pink Parachute",
+      "grid": "P13",
+      "prose": "Lowlands, The Velvet Lounge, behind Pink Parachute"
+    },
+    "category": "Workshop/Class",
+    "vibes": "🦍 Adults only · 🖤 Sex positive",
+    "day": "Wed. 22 July",
+    "dayDate": "2026-07-22",
+    "start": "15:30",
+    "end": "17:30",
+    "description": "A gentle, playful and creative space to colorfully draw the river of your sexual story. No art skills needed. We'll sketch rocky bumps, calm waters or waterfalls and floods of pleasure, making sense of your erotic history with curiosity, care and fun.",
+    "comments": "",
+    "flags": {
+      "kid": false,
+      "sexPositive": true,
+      "queer": false,
+      "adult": true,
+      "sober": false,
+      "warnSensory": false,
+      "warnTriggering": false
+    },
+    "startsAt": "2026-07-22T15:30:00",
+    "endsAt": "2026-07-22T17:30:00",
+    "allDay": false,
+    "timeTBD": false,
+    "sortMinutes": 930
   }
 ]
