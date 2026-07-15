@@ -32,6 +32,10 @@ export function initPwa() {
   if (initialized) return;
   initialized = true;
 
+  // Ask the browser not to evict our storage (SW cache + favorites) under disk pressure.
+  // Best-effort: some browsers ignore it; failure changes nothing.
+  void navigator.storage?.persist?.().catch(() => undefined);
+
   updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
