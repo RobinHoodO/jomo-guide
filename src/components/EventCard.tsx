@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { memo, useState, type CSSProperties } from 'react';
 import {
   CATEGORY_COLORS,
   FLAG_FILTERS,
@@ -87,7 +87,8 @@ function formatSiblingDay(event: EventItem) {
   return `${dayName} ${Number.isFinite(dayNumber) ? dayNumber : event.dayDate}`;
 }
 
-export function EventCard({
+// memo: search keystrokes re-filter 1,200+ cards; skip re-rendering the ones whose props didn't change
+export const EventCard = memo(function EventCard({
   event,
   isFavorite,
   isOccurrenceFavorite,
@@ -264,4 +265,4 @@ export function EventCard({
       ) : null}
     </article>
   );
-}
+});

@@ -497,6 +497,9 @@ main.is-plain-bg .ambient-blobs {
 
 .event-card.is-collapsed {
   border-left-color: var(--category-color);
+  /* skip layout/paint of offscreen cards — the Program list mounts 1,200+ at once */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 }
 
 .panel-card {
