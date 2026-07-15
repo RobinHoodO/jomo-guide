@@ -14,7 +14,7 @@ import {
   type MapCell
 } from '../lib/events';
 import { latLonToGrid, type GridPosition } from '../lib/geo';
-import { MAP_META, PLACES, PLAZAS } from '../data/info-content';
+import { MAP_META, PLACES, PLAZAS, type Place } from '../data/info-content';
 
 type MapTabProps = {
   selectedGrid: string | null;
