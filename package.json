@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0 --port 5174",
     "build:events": "node scripts/build-events.mjs",
     "build:destinations": "node scripts/build-destinations.mjs",
+    "check:geo": "node --experimental-strip-types scripts/check-geo.mjs",
     "reconcile": "node scripts/reconcile-events.mjs"
   },
   "dependencies": {
