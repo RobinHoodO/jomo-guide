@@ -4,6 +4,7 @@ import {
   CATEGORY_COLORS,
   FLAG_FILTERS,
   PROGRAM_DAYS,
+  visibleProgramDays,
   type Filters,
   type FlagKey
 } from '../lib/events';
@@ -25,8 +26,15 @@ function parseHour(value: string) {
 }
 
 export function FilterBar({ filters, setFilters }: FilterBarProps) {
+  const days = filters.showPast ? PROGRAM_DAYS : visibleProgramDays();
+
   const toggleDay = (day: string | null) => {
     setFilters({ ...filters, day });
+  };
+
+  const toggleShowPast = (showPast: boolean) => {
+    const dayIsHidden = filters.day !== null && !visibleProgramDays().includes(filters.day);
+    setFilters({ ...filters, showPast, day: !showPast && dayIsHidden ? null : filters.day });
   };
 
   const toggleCategory = (category: string) => {
@@ -57,14 +65,24 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
       />
 
       <div className="mt-2 flex items-center justify-between gap-2">
-        <label className="toggle-row">
-          <input
-            type="checkbox"
-            checked={filters.familyMode}
-            onChange={(event) => setFilters({ ...filters, familyMode: event.target.checked })}
-          />
-          <span>family mode</span>
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="toggle-row">
+            <input
+              type="checkbox"
+              checked={filters.familyMode}
+              onChange={(event) => setFilters({ ...filters, familyMode: event.target.checked })}
+            />
+            <span>family mode</span>
+          </label>
+          <label className="toggle-row">
+            <input
+              type="checkbox"
+              checked={filters.showPast}
+              onChange={(event) => toggleShowPast(event.target.checked)}
+            />
+            <span>past days</span>
+          </label>
+        </div>
         <button
           type="button"
           className="min-h-8 rounded-md px-1 text-[10px] font-black leading-[11px] text-cream transition-colors duration-200 hover:text-yellow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
@@ -76,7 +94,8 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
               hourTo: null,
               categories: [],
               flags: [],
-              familyMode: false
+              familyMode: false,
+              showPast: false
             })
           }
         >
@@ -92,7 +111,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
         >
           All days
         </button>
-        {PROGRAM_DAYS.map((day) => (
+        {days.map((day) => (
           <button
             type="button"
             key={day}

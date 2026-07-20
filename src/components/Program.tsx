@@ -19,7 +19,8 @@ const EMPTY_FILTERS: Filters = {
   hourTo: null,
   categories: [],
   flags: [],
-  familyMode: false
+  familyMode: false,
+  showPast: false
 };
 
 function Sparkle({ className = '' }: { className?: string }) {

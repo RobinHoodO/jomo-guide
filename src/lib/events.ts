@@ -1,4 +1,7 @@
 import eventsJson from '../data/events.json';
+import { isPastEvent } from './past';
+
+export { isPastEvent };
 
 export type FlagKey =
   | 'kid'
@@ -69,6 +72,7 @@ export type Filters = {
   categories: string[];
   flags: FlagKey[];
   familyMode: boolean;
+  showPast: boolean;
 };
 
 export const EVENTS = eventsJson as EventItem[];
@@ -284,9 +288,16 @@ export function isStartingSoon(event: EventItem, now = getNow(), hours = 4) {
   return diff > 0 && diff <= hours * 60 * 60 * 1000;
 }
 
-export function filterEvents(events: EventItem[], filters: Filters) {
+export function visibleProgramDays(now = getNow()) {
+  return PROGRAM_DAYS.filter((day) =>
+    EVENTS.some((event) => event.day === day && !isPastEvent(event, now))
+  );
+}
+
+export function filterEvents(events: EventItem[], filters: Filters, now = getNow()) {
   const query = filters.query.trim().toLowerCase();
   return events.filter((event) => {
+    if (!filters.showPast && isPastEvent(event, now)) return false;
     if (filters.day && event.day !== filters.day) return false;
 
     if (filters.hourFrom != null || filters.hourTo != null) {

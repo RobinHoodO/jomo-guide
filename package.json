@@ -10,6 +10,7 @@
     "build:events": "node scripts/build-events.mjs",
     "build:destinations": "node scripts/build-destinations.mjs",
     "check:geo": "node --experimental-strip-types scripts/check-geo.mjs",
+    "check:past": "node --experimental-strip-types scripts/check-past.mjs",
     "reconcile": "node scripts/reconcile-events.mjs"
   },
   "dependencies": {
