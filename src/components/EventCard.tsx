@@ -24,6 +24,7 @@ type EventCardProps = {
   note?: string;
   headingLevel?: EventCardHeadingLevel;
   showCalendarExport?: boolean;
+  onHide?: () => void;
 };
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -57,6 +58,23 @@ function CalendarIcon() {
     >
       <path d="M8 3v3M16 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
       <path d="M12 12v5M9.5 14.5 12 17l2.5-2.5" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m3 3 18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c7 0 10 7 10 7a16.9 16.9 0 0 1-3.2 4.2M6.6 6.6C3.6 8.6 2 12 2 12s3 7 10 7a9.9 9.9 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />
     </svg>
   );
 }
@@ -98,7 +116,8 @@ export const EventCard = memo(function EventCard({
   muted = false,
   note,
   headingLevel = 'h3',
-  showCalendarExport = false
+  showCalendarExport = false,
+  onHide
 }: EventCardProps) {
   const visibleFlags = FLAG_FILTERS.filter(({ key }) => event.flags[key]);
   const warnings = visibleFlags.filter(({ key }) => WARNING_FLAGS.includes(key));
@@ -162,6 +181,20 @@ export const EventCard = memo(function EventCard({
           </button>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          {onHide ? (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                onHide();
+              }}
+              aria-label="Hide this event (not interested)"
+              title="Not interested"
+            >
+              <EyeOffIcon />
+            </button>
+          ) : null}
           {showCalendarExport ? (
             <button
               type="button"

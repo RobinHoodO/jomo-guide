@@ -476,6 +476,65 @@ main.is-plain-bg .ambient-blobs {
   box-shadow: 0 10px 30px rgba(7, 10, 30, 0.28);
 }
 
+.swipe-wrap {
+  position: relative;
+  /* horizontal swipes are ours; vertical stays native scroll */
+  touch-action: pan-y;
+}
+
+.swipe-card {
+  position: relative;
+  will-change: transform;
+}
+
+.swipe-under {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1.1rem;
+  border-radius: 1.35rem 1.1rem 1.45rem 1.15rem; /* match .event-card */
+  font-family: var(--display-font);
+  font-weight: 800;
+  font-size: 0.85rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+.swipe-under.is-favorite {
+  justify-content: flex-start;
+  background: var(--yellow);
+  color: var(--navy);
+}
+
+.swipe-under.is-hide {
+  justify-content: flex-end;
+  background: #c93a56;
+  color: var(--cream);
+}
+
+.restore-hidden {
+  @apply shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  background: rgba(242, 235, 217, 0.14);
+  color: var(--cream);
+  border: 1px solid rgba(242, 235, 217, 0.25);
+}
+
+.restore-hidden:hover {
+  background: rgba(242, 235, 217, 0.24);
+}
+
+.snackbar {
+  @apply flex items-center gap-3;
+}
+
+.snackbar-undo {
+  @apply rounded-full px-2.5 py-0.5 text-sm font-black uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/50;
+  background: rgba(242, 235, 217, 0.2);
+  color: var(--cream);
+  border: 1px solid rgba(242, 235, 217, 0.4);
+}
+
 .event-card,
 .panel-card {
   background: var(--cream);

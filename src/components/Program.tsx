@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
-import { EventCard } from './EventCard';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FilterBar } from './FilterBar';
 import { NowNext } from './NowNext';
 import { Serendipity } from './Serendipity';
-import { EVENTS, filterEvents, groupByDay, type Filters } from '../lib/events';
+import { SwipeableEventCard } from './SwipeableEventCard';
+import { useHidden } from '../hooks/useHidden';
+import { EVENTS, filterEvents, getNow, groupByDay, type EventItem, type Filters } from '../lib/events';
+import { localISODate } from '../lib/past';
 
 type ProgramProps = {
   isFavorite: (id: string) => boolean;
@@ -33,8 +35,60 @@ function Sparkle({ className = '' }: { className?: string }) {
 
 export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: ProgramProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const visibleEvents = useMemo(() => filterEvents(EVENTS, filters), [filters]);
+  const { hiddenIds, isHidden, hide, unhide, unhideAll } = useHidden();
+  const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
+  const undoTimer = useRef<number | null>(null);
+
+  // Re-evaluates the past-day rule when the app is brought back to the
+  // foreground after midnight (PWAs resume with day-old state at a festival).
+  const [nowKey, setNowKey] = useState(() => localISODate(getNow()));
+  useEffect(() => {
+    const refresh = () => setNowKey(localISODate(getNow()));
+    document.addEventListener('visibilitychange', refresh);
+    return () => document.removeEventListener('visibilitychange', refresh);
+  }, []);
+
+  // Two layers so a swipe-hide only re-filters the small visible list,
+  // not all 1,200+ events.
+  const filtered = useMemo(() => filterEvents(EVENTS, filters), [filters, nowKey]);
+  const visibleEvents = useMemo(() => filtered.filter((event) => !isHidden(event.id)), [filtered, isHidden]);
   const grouped = useMemo(() => groupByDay(visibleEvents), [visibleEvents]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+    };
+  }, []);
+
+  const hideEvent = useCallback(
+    (event: EventItem) => {
+      hide(event.id);
+      if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+      setUndoHide({ id: event.id, title: event.title });
+      undoTimer.current = window.setTimeout(() => {
+        setUndoHide(null);
+        undoTimer.current = null;
+      }, 5000);
+    },
+    [hide]
+  );
+
+  const undoLastHide = () => {
+    if (!undoHide) return;
+    unhide(undoHide.id);
+    setUndoHide(null);
+    if (undoTimer.current !== null) {
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+  };
+
+  const favoriteBySwipe = useCallback(
+    (event: EventItem) => {
+      if (!isFavorite(event.id)) toggleFavorite(event.id);
+    },
+    [isFavorite, toggleFavorite]
+  );
 
   return (
     <div className="space-y-6">
@@ -63,6 +117,11 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
               <Sparkle className="text-pink" />
             </div>
           </div>
+          {hiddenIds.length ? (
+            <button type="button" className="restore-hidden" onClick={unhideAll}>
+              {hiddenIds.length} hidden · restore
+            </button>
+          ) : null}
         </div>
 
         {grouped.length ? (
@@ -71,7 +130,7 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
               <div className="day-pill">{group.day}</div>
               <div className="space-y-2">
                 {group.events.map((event) => (
-                  <EventCard
+                  <SwipeableEventCard
                     key={event.id}
                     event={event}
                     isFavorite={isFavorite(event.id)}
@@ -79,6 +138,8 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
                     onToggleFavorite={toggleFavorite}
                     onSelectGrid={onSelectGrid}
                     onSelectCamp={onSelectCamp}
+                    onHide={hideEvent}
+                    onSwipeFavorite={favoriteBySwipe}
                   />
                 ))}
               </div>
@@ -90,6 +151,15 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
           </p>
         )}
       </section>
+
+      {undoHide ? (
+        <div className="toast snackbar" role="status" aria-live="polite">
+          <span>Hidden. Enjoy missing out 🙈</span>
+          <button type="button" className="snackbar-undo" onClick={undoLastHide}>
+            Undo
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
