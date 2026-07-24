@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventCard } from './EventCard';
 import { type EventItem, getNow, pickSerendipity } from '../lib/events';
+import { localISODate } from '../lib/past';
 
 type SerendipityProps = {
   events: EventItem[];
@@ -77,15 +78,20 @@ export function Serendipity({ events, isFavorite, toggleFavorite, onSelectGrid, 
         </button>
       </div>
       {picked ? (
-        <EventCard
-          event={picked}
-          isFavorite={isFavorite(picked.id)}
-          isOccurrenceFavorite={isFavorite}
-          onToggleFavorite={toggleFavorite}
-          onSelectGrid={onSelectGrid}
-          onSelectCamp={onSelectCamp}
-          compact
-        />
+        <>
+          {picked.dayDate !== localISODate(now) ? (
+            <div className="day-pill">{picked.day.replace('.', '')}</div>
+          ) : null}
+          <EventCard
+            event={picked}
+            isFavorite={isFavorite(picked.id)}
+            isOccurrenceFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onSelectGrid={onSelectGrid}
+            onSelectCamp={onSelectCamp}
+            compact
+          />
+        </>
       ) : (
         <p className="panel-card text-base text-[var(--muted-indigo)]">
           No dice with these filters. The void recommends loosening one.
