@@ -10,25 +10,40 @@ assert.equal(localISODate(now), '2026-07-20');
 // Yesterday's event is past.
 assert.equal(isPastEvent({ dayDate: '2026-07-19', endsAt: '2026-07-19T22:00:00' }, now), true);
 
-// Today's event that already ended still shows (day-granular rule).
-assert.equal(isPastEvent({ dayDate: '2026-07-20', endsAt: '2026-07-20T09:00:00' }, now), false);
+// Today's event that already ended is past too (event-granular rule).
+assert.equal(isPastEvent({ dayDate: '2026-07-20', endsAt: '2026-07-20T09:00:00' }, now), true);
 
 // Today's in-progress and upcoming events show.
 assert.equal(isPastEvent({ dayDate: '2026-07-20', endsAt: '2026-07-20T14:00:00' }, now), false);
 assert.equal(isPastEvent({ dayDate: '2026-07-21', endsAt: '2026-07-21T02:00:00' }, now), false);
 
-// Yesterday's party spilling past midnight into today is not past yet...
+// Yesterday's party spilling past midnight into today is not past while it runs...
 assert.equal(
   isPastEvent({ dayDate: '2026-07-19', endsAt: '2026-07-20T03:00:00' }, new Date('2026-07-20T01:00:00')),
   false
 );
-// ...but is past the following day.
+// ...but is past as soon as it ends — this is what retires yesterday's day chip
+// the next morning instead of keeping it alive all day.
 assert.equal(
-  isPastEvent({ dayDate: '2026-07-19', endsAt: '2026-07-20T03:00:00' }, new Date('2026-07-21T01:00:00')),
+  isPastEvent({ dayDate: '2026-07-19', endsAt: '2026-07-20T03:00:00' }, new Date('2026-07-20T11:00:00')),
   true
 );
 
-// All-day / time-TBD events (no endsAt) fall back to the date comparison.
+// All-day events (endsAt 23:59) stay visible their whole day.
+assert.equal(isPastEvent({ dayDate: '2026-07-20', endsAt: '2026-07-20T23:59:00' }, now), false);
+
+// Time-TBD events carry a placeholder endsAt (often start === end), so they use
+// the day rule: visible all of their day, past the day after.
+assert.equal(
+  isPastEvent({ dayDate: '2026-07-20', endsAt: '2026-07-20T12:01:00', timeTBD: true }, new Date('2026-07-20T18:00:00')),
+  false
+);
+assert.equal(
+  isPastEvent({ dayDate: '2026-07-19', endsAt: '2026-07-19T12:01:00', timeTBD: true }, now),
+  true
+);
+
+// Events with no endsAt at all fall back to the date comparison.
 assert.equal(isPastEvent({ dayDate: '2026-07-19', endsAt: null }, now), true);
 assert.equal(isPastEvent({ dayDate: '2026-07-20', endsAt: null }, now), false);
 

@@ -80,7 +80,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
               checked={filters.showPast}
               onChange={(event) => toggleShowPast(event.target.checked)}
             />
-            <span>past days</span>
+            <span>past events</span>
           </label>
         </div>
         <button

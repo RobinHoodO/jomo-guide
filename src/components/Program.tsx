@@ -5,7 +5,6 @@ import { Serendipity } from './Serendipity';
 import { SwipeableEventCard } from './SwipeableEventCard';
 import { useHidden } from '../hooks/useHidden';
 import { EVENTS, filterEvents, getNow, groupByDay, type EventItem, type Filters } from '../lib/events';
-import { localISODate } from '../lib/past';
 
 type ProgramProps = {
   isFavorite: (id: string) => boolean;
@@ -39,11 +38,12 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
   const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
   const undoTimer = useRef<number | null>(null);
 
-  // Re-evaluates the past-day rule when the app is brought back to the
-  // foreground after midnight (PWAs resume with day-old state at a festival).
-  const [nowKey, setNowKey] = useState(() => localISODate(getNow()));
+  // Re-evaluates the past-event rule when the app is brought back to the
+  // foreground (PWAs resume with stale state at a festival). Uses the full
+  // timestamp, not the date: events now expire at their end time, mid-day.
+  const [nowKey, setNowKey] = useState(() => getNow().getTime());
   useEffect(() => {
-    const refresh = () => setNowKey(localISODate(getNow()));
+    const refresh = () => setNowKey(getNow().getTime());
     document.addEventListener('visibilitychange', refresh);
     return () => document.removeEventListener('visibilitychange', refresh);
   }, []);
