@@ -3,6 +3,7 @@ import { getMissionRewardPayload, type CapacityType, type CreateMissionInput, ty
 
 type MissionFormProps = {
   mission: Mission | null;
+  quest?: { questId: string; questStep: number };
   onClose: () => void;
   onSave: (input: CreateMissionInput) => Promise<string | null>;
   onDelete?: () => Promise<string | null>;
@@ -44,7 +45,7 @@ function fieldForError(message: string): FieldName {
   return 'form';
 }
 
-export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormProps) {
+export function MissionForm({ mission, quest, onClose, onSave, onDelete }: MissionFormProps) {
   const [title, setTitle] = useState(mission?.title ?? '');
   const [description, setDescription] = useState(mission?.description ?? '');
   const [capacityType, setCapacityType] = useState<CapacityType>(mission?.capacity_type ?? 'open');
@@ -62,10 +63,16 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
   const [rewardCloserBody, setRewardCloserBody] = useState('');
   const [loadingRewardPayload, setLoadingRewardPayload] = useState(Boolean(mission?.reward_kind));
   const [rewardPayloadReady, setRewardPayloadReady] = useState(!mission?.reward_kind);
+  const [startsQuest, setStartsQuest] = useState(Boolean(quest || mission?.quest_id));
+  const [questId, setQuestId] = useState(quest?.questId ?? mission?.quest_id ?? null);
+  const [questReveal, setQuestReveal] = useState(mission?.quest_reveal ?? 'hint');
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [saving, setSaving] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const minimumExpiry = localDateTime(new Date().toISOString());
+  const questLocked = Boolean(quest || mission?.quest_id);
+  const questStep = quest?.questStep ?? mission?.quest_step ?? (startsQuest ? 1 : null);
+  const isQuestStep = startsQuest && questId !== null && questStep !== null;
 
   const clearError = (field: FieldName) => {
     setErrors((current) => {
@@ -121,7 +128,10 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
       reward_kind: hasReward ? rewardKind : null,
       reward_threshold: hasReward ? Number(rewardThreshold) : null,
       reward_body: hasReward && rewardKind !== 'roster' ? rewardBody : null,
-      reward_closer_body: hasReward ? rewardCloserBody : null
+      reward_closer_body: hasReward ? rewardCloserBody : null,
+      quest_id: isQuestStep ? questId : null,
+      quest_step: isQuestStep ? questStep : null,
+      quest_reveal: isQuestStep && questStep === 1 ? questReveal : null
     });
 
     setSaving(false);
@@ -165,81 +175,88 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
       </div>
 
       <form className="space-y-3" onSubmit={submit} noValidate>
-        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-title">
-          Title
-          <input
-            id="mission-title"
-            className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
-            value={title}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              clearError('title');
-            }}
-            maxLength={140}
-            required
-            aria-invalid={Boolean(errors.title)}
-            aria-describedby={errors.title ? 'mission-title-error' : undefined}
-          />
-          {errors.title ? <span id="mission-title-error" className="mt-1 block text-xs font-semibold text-pink">{errors.title}</span> : null}
-        </label>
-
-        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-description">
-          Description <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
-          <textarea
-            id="mission-description"
-            className="mt-1 min-h-24 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
-            value={description}
-            onChange={(event) => {
-              setDescription(event.target.value);
-              clearError('description');
-            }}
-            maxLength={4000}
-            aria-invalid={Boolean(errors.description)}
-            aria-describedby={errors.description ? 'mission-description-error' : undefined}
-          />
-          {errors.description ? <span id="mission-description-error" className="mt-1 block text-xs font-semibold text-pink">{errors.description}</span> : null}
-        </label>
-
-        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity-type">
-          Who can take it on?
-          <select
-            id="mission-capacity-type"
-            className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
-            value={capacityType}
-            onChange={(event) => {
-              setCapacityType(event.target.value as CapacityType);
-              clearError('capacity');
-            }}
-          >
-            <option value="open">Open to everyone</option>
-            <option value="limited">Limited spots</option>
-            <option value="exclusive">One person only</option>
-          </select>
-        </label>
-
-        {capacityType === 'limited' ? (
-          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity">
-            Number of spots
+        <section className="space-y-3">
+          <p className="section-kicker text-pink">What</p>
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-title">
+            Title
             <input
-              id="mission-capacity"
+              id="mission-title"
               className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              step="1"
-              value={capacity}
+              value={title}
               onChange={(event) => {
-                setCapacity(event.target.value);
+                setTitle(event.target.value);
+                clearError('title');
+              }}
+              maxLength={140}
+              required
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={errors.title ? 'mission-title-error' : undefined}
+            />
+            {errors.title ? <span id="mission-title-error" className="mt-1 block text-xs font-semibold text-pink">{errors.title}</span> : null}
+          </label>
+
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-description">
+            Description <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
+            <textarea
+              id="mission-description"
+              className="mt-1 min-h-24 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                clearError('description');
+              }}
+              maxLength={4000}
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby={errors.description ? 'mission-description-error' : undefined}
+            />
+            {errors.description ? <span id="mission-description-error" className="mt-1 block text-xs font-semibold text-pink">{errors.description}</span> : null}
+          </label>
+        </section>
+
+        <section className="space-y-3 border-t border-indigo-brand/15 pt-3">
+          <p className="section-kicker text-pink">Who can take it on</p>
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity-type">
+            Capacity
+            <select
+              id="mission-capacity-type"
+              className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              value={capacityType}
+              onChange={(event) => {
+                setCapacityType(event.target.value as CapacityType);
                 clearError('capacity');
               }}
-              aria-invalid={Boolean(errors.capacity)}
-              aria-describedby={errors.capacity ? 'mission-capacity-error' : undefined}
-            />
-            {errors.capacity ? <span id="mission-capacity-error" className="mt-1 block text-xs font-semibold text-pink">{errors.capacity}</span> : null}
+            >
+              <option value="open">Open to everyone</option>
+              <option value="limited">Limited spots</option>
+              <option value="exclusive">One person only</option>
+            </select>
           </label>
-        ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+          {capacityType === 'limited' ? (
+            <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity">
+              Number of spots
+              <input
+                id="mission-capacity"
+                className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                value={capacity}
+                onChange={(event) => {
+                  setCapacity(event.target.value);
+                  clearError('capacity');
+                }}
+                aria-invalid={Boolean(errors.capacity)}
+                aria-describedby={errors.capacity ? 'mission-capacity-error' : undefined}
+              />
+              {errors.capacity ? <span id="mission-capacity-error" className="mt-1 block text-xs font-semibold text-pink">{errors.capacity}</span> : null}
+            </label>
+          ) : null}
+        </section>
+
+        <section className="space-y-3 border-t border-indigo-brand/15 pt-3">
+          <p className="section-kicker text-pink">Where</p>
           <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-grid-ref">
             Grid ref <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
             <input
@@ -254,6 +271,28 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
             />
           </label>
 
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
+              <input
+                className="mt-0.5 size-4 accent-pink"
+                type="checkbox"
+                checked={requiresPresence}
+                onChange={(event) => {
+                  setRequiresPresence(event.target.checked);
+                  clearError('presence');
+                }}
+                disabled={!gridRef.trim()}
+                aria-describedby={errors.presence ? 'mission-presence-error' : undefined}
+              />
+              Only claimable from its grid square
+            </label>
+            {!gridRef.trim() ? <p className="text-xs text-[var(--muted-indigo)]">Add a grid ref to turn this on.</p> : null}
+            {errors.presence ? <p id="mission-presence-error" className="text-xs font-semibold text-pink">{errors.presence}</p> : null}
+          </div>
+        </section>
+
+        <section className="space-y-3 border-t border-indigo-brand/15 pt-3">
+          <p className="section-kicker text-pink">When</p>
           <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-expires-at">
             Expires <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
             <input
@@ -271,38 +310,23 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
             />
             {errors.expires ? <span id="mission-expires-at-error" className="mt-1 block text-xs font-semibold text-pink">{errors.expires}</span> : null}
           </label>
-        </div>
+        </section>
 
-        <div className="space-y-1">
+        <section className="space-y-3 border-t border-indigo-brand/15 pt-3">
+          <p className="section-kicker text-pink">How it completes</p>
           <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
             <input
               className="mt-0.5 size-4 accent-pink"
               type="checkbox"
-              checked={requiresPresence}
-              onChange={(event) => {
-                setRequiresPresence(event.target.checked);
-                clearError('presence');
-              }}
-              disabled={!gridRef.trim()}
-              aria-describedby={errors.presence ? 'mission-presence-error' : undefined}
+              checked={requiresVerification}
+              onChange={(event) => setRequiresVerification(event.target.checked)}
             />
-            Only claimable from its grid square
+            I want to confirm it&apos;s done
           </label>
-          {!gridRef.trim() ? <p className="text-xs text-[var(--muted-indigo)]">Add a grid ref to turn this on.</p> : null}
-          {errors.presence ? <p id="mission-presence-error" className="text-xs font-semibold text-pink">{errors.presence}</p> : null}
-        </div>
+        </section>
 
-        <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
-          <input
-            className="mt-0.5 size-4 accent-pink"
-            type="checkbox"
-            checked={requiresVerification}
-            onChange={(event) => setRequiresVerification(event.target.checked)}
-          />
-          I want to confirm it&apos;s done
-        </label>
-
-        <div className="space-y-2 border-t border-indigo-brand/15 pt-3">
+        <section className="space-y-2 border-t border-indigo-brand/15 pt-3">
+          <p className="section-kicker text-pink">What it leads to</p>
           <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
             <input
               className="mt-0.5 size-4 accent-pink"
@@ -390,9 +414,67 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
             </div>
           ) : null}
 
+          {questLocked ? (
+            <p className="text-xs text-[var(--muted-indigo)]">
+              {questStep === 1 ? 'This starts a quest.' : `This is step ${questStep} of a quest.`}
+            </p>
+          ) : (
+            <div className="space-y-2 border-t border-indigo-brand/15 pt-3">
+              <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
+                <input
+                  className="mt-0.5 size-4 accent-pink"
+                  type="checkbox"
+                  checked={startsQuest}
+                  onChange={(event) => {
+                    const nextStartsQuest = event.target.checked;
+                    setStartsQuest(nextStartsQuest);
+                    setQuestId(nextStartsQuest ? crypto.randomUUID() : null);
+                  }}
+                />
+                This starts a quest
+              </label>
+
+              {startsQuest ? (
+                <fieldset className="space-y-1">
+                  <legend className="text-sm font-semibold text-indigo-brand">What should people know?</legend>
+                  <label className="flex items-start gap-2 text-sm text-indigo-brand">
+                    <input
+                      className="mt-0.5 size-4 accent-pink"
+                      type="radio"
+                      name="mission-quest-reveal"
+                      value="hint"
+                      checked={questReveal === 'hint'}
+                      onChange={() => setQuestReveal('hint')}
+                    />
+                    Just hint that it continues
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-indigo-brand">
+                    <input
+                      className="mt-0.5 size-4 accent-pink"
+                      type="radio"
+                      name="mission-quest-reveal"
+                      value="length"
+                      checked={questReveal === 'length'}
+                      onChange={() => setQuestReveal('length')}
+                    />
+                    Show how many steps
+                  </label>
+                  <p className="text-xs text-[var(--muted-indigo)]">Showing the length is clearer; hinting lets you extend the quest later without anyone noticing the number changed.</p>
+                </fieldset>
+              ) : null}
+            </div>
+          )}
+
+          {!questLocked && capacityType === 'exclusive' && startsQuest ? (
+            <p className="text-xs font-semibold text-pink">One person only means only that one person will ever see the rest of the chain.</p>
+          ) : null}
+          {requiresVerification && isQuestStep ? (
+            <p className="text-xs font-semibold text-pink">The next step stays locked until you approve, so the chain stalls if you are away.</p>
+          ) : null}
+
           {loadingRewardPayload ? <p className="text-xs text-[var(--muted-indigo)]">Loading what you promised…</p> : null}
           {errors.reward ? <p id="mission-reward-error" className="text-xs font-semibold text-pink">{errors.reward}</p> : null}
-        </div>
+        </section>
 
         {errors.form ? <p className="text-xs font-semibold text-pink">{errors.form}</p> : null}
 

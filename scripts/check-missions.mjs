@@ -1,7 +1,7 @@
 // Self-check for src/lib/mission-rules.ts.
 // Run: node --experimental-strip-types scripts/check-missions.mjs
 import assert from 'node:assert';
-import { canClaimHere, normalizeCreateInput, normalizeUpdateInput } from '../src/lib/mission-rules.ts';
+import { canClaimHere, canDeleteQuestStep, normalizeCreateInput, normalizeUpdateInput } from '../src/lib/mission-rules.ts';
 
 const canonicalize = (code) => {
   const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
@@ -68,6 +68,38 @@ assert.equal(
   normalizeUpdateInput({ reward_kind: 'clue', reward_threshold: 2, reward_body: 'Look for the yellow flag.' }).error,
   null
 );
+assert.equal(
+  normalizeCreateInput({ ...baseInput, quest_id: 'quest-1', quest_step: 1, quest_reveal: 'hint' }).error,
+  null
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, quest_id: 'quest-1', quest_step: 1, quest_reveal: 'length' }).error,
+  null
+);
+assert.notEqual(normalizeCreateInput({ ...baseInput, quest_id: 'quest-1' }).error, null);
+assert.notEqual(normalizeCreateInput({ ...baseInput, quest_step: 1 }).error, null);
+assert.notEqual(normalizeCreateInput({ ...baseInput, quest_id: 'quest-1', quest_step: 0 }).error, null);
+assert.notEqual(normalizeCreateInput({ ...baseInput, quest_id: 'quest-1', quest_step: 2, quest_reveal: 'hint' }).error, null);
+assert.notEqual(normalizeCreateInput({ ...baseInput, quest_reveal: 'hint' }).error, null);
+assert.equal(
+  normalizeUpdateInput({ quest_id: 'quest-1', quest_step: 2, quest_reveal: null }).error,
+  null
+);
+assert.equal(
+  canDeleteQuestStep(
+    { quest_id: 'quest-1', quest_step: 1 },
+    [{ quest_id: 'quest-1', quest_step: 2 }]
+  ),
+  false
+);
+assert.equal(
+  canDeleteQuestStep(
+    { quest_id: 'quest-1', quest_step: 2 },
+    [{ quest_id: 'quest-1', quest_step: 1 }]
+  ),
+  true
+);
+assert.equal(canDeleteQuestStep({ quest_id: null, quest_step: null }, []), true);
 
 assert.equal(canClaimHere({ requires_presence: true, grid_ref: 'B03' }, 'b3', canonicalize), true);
 assert.equal(canClaimHere({ requires_presence: true, grid_ref: 'B3' }, 'B4', canonicalize), false);

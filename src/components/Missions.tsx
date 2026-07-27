@@ -10,6 +10,7 @@ import {
   claimMission,
   createMission,
   deleteMission,
+  getQuestShape,
   getMissionReward,
   listMissions,
   markClaimDone,
@@ -24,7 +25,7 @@ import {
   type MissionReward,
   type MissionWithClaims
 } from '../lib/missions';
-import { canClaimHere } from '../lib/mission-rules';
+import { canClaimHere, canDeleteQuestStep } from '../lib/mission-rules';
 import { canonicalCell } from '../lib/geo';
 import { canSpendBandwidth } from '../lib/network';
 import { flushOutbox, getSnapshot as getOutboxSnapshot, subscribe as subscribeOutbox } from '../lib/outbox';
@@ -48,7 +49,12 @@ type MissionsProps = {
   selectedMission: { id: string; token: number } | null;
 };
 
-type FormState = 'create' | Mission | null;
+type QuestExtension = { questId: string; questStep: number };
+type FormState = 'create' | Mission | QuestExtension | null;
+
+function isQuestExtension(form: FormState): form is QuestExtension {
+  return form !== null && form !== 'create' && !('id' in form);
+}
 
 function capacityLabel(mission: MissionWithClaims) {
   if (mission.capacity_type === 'open') return 'open to everyone';
@@ -113,7 +119,10 @@ function missionPatch(input: CreateMissionInput): Partial<Mission> {
     requires_verification: input.requires_verification ?? false,
     expires_at: input.expires_at ?? null,
     reward_kind: input.reward_kind ?? null,
-    reward_threshold: input.reward_threshold ?? null
+    reward_threshold: input.reward_threshold ?? null,
+    quest_id: input.quest_id ?? null,
+    quest_step: input.quest_step ?? null,
+    quest_reveal: input.quest_reveal ?? null
   };
 }
 
@@ -148,6 +157,8 @@ function MissionCard({
   onSelectGrid,
   onToggleFavorite,
   onEdit,
+  onAddNextStep,
+  canAddNextStep,
   onClaim,
   onDone,
   onSubmit,
@@ -168,6 +179,8 @@ function MissionCard({
   onSelectGrid: (grid: string) => void;
   onToggleFavorite: () => void;
   onEdit: () => void;
+  onAddNextStep: () => void;
+  canAddNextStep: boolean;
   onClaim: () => void;
   onDone: (claim: Claim) => void;
   onSubmit: (claim: Claim) => void;
@@ -179,6 +192,9 @@ function MissionCard({
   const [reward, setReward] = useState<MissionReward | null>(null);
   const [rewardError, setRewardError] = useState<string | null>(null);
   const [loadingReward, setLoadingReward] = useState(false);
+  const [questShape, setQuestShape] = useState<{ steps: number | null } | null>(null);
+  const [questError, setQuestError] = useState<string | null>(null);
+  const [loadingQuest, setLoadingQuest] = useState(false);
   const unavailableReason = unavailabilityReason(mission);
   const claimNeedsSignal = mission.capacity_type !== 'open' && !canSpendBandwidth();
   const canClaim = !isYours && !mission.myClaim && !isQueuedClaim && !unavailableReason;
@@ -191,7 +207,24 @@ function MissionCard({
     const nextExpanded = !expanded;
     setExpanded(nextExpanded);
 
-    if (!nextExpanded || !mission.reward_kind) return;
+    if (!nextExpanded) return;
+
+    if (mission.quest_id && mission.quest_step === 1) {
+      setLoadingQuest(true);
+      setQuestError(null);
+      setQuestShape(null);
+      void getQuestShape(mission.quest_id).then((result) => {
+        setLoadingQuest(false);
+        if (result.error) {
+          setQuestError(result.error);
+          return;
+        }
+
+        setQuestShape(result.data);
+      });
+    }
+
+    if (!mission.reward_kind) return;
 
     setLoadingReward(true);
     setRewardError(null);
@@ -231,6 +264,15 @@ function MissionCard({
             ) : null}
             {mission.requires_presence && mission.grid_ref ? <span className="soft-badge">here only · {mission.grid_ref}</span> : null}
             <span className="soft-badge truncate">{capacityLabel(mission)}</span>
+            {mission.quest_step ? (
+              <span className="soft-badge">
+                {mission.quest_step === 1
+                  ? typeof questShape?.steps === 'number'
+                    ? `step 1 of ${questShape.steps}`
+                    : 'this leads somewhere'
+                  : `step ${mission.quest_step}`}
+              </span>
+            ) : null}
             {unavailableReason ? <span className="soft-badge">{unavailabilityLabel(unavailableReason)}</span> : null}
           </div>
           <button
@@ -270,6 +312,8 @@ function MissionCard({
       {expanded ? (
         <div className="event-expanded space-y-2">
           {mission.description ? <p className="whitespace-pre-line text-sm leading-6 text-indigo-brand">{mission.description}</p> : null}
+          {loadingQuest ? <p className="text-xs font-semibold text-[var(--muted-indigo)]">Following the thread…</p> : null}
+          {questError ? <p className="text-xs font-semibold text-pink">{questError}</p> : null}
           {mission.expires_at ? (
             <p className="text-xs leading-5 text-[var(--muted-indigo)]">
               Expires {new Date(mission.expires_at).toLocaleString()}
@@ -351,17 +395,32 @@ function MissionCard({
             </div>
           ) : null}
           {isYours ? (
-            <button
-              type="button"
-              className="min-h-10 rounded-full border border-indigo-brand/20 px-4 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit();
-              }}
-              disabled={readOnly}
-            >
-              Edit mission
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="min-h-10 rounded-full border border-indigo-brand/20 px-4 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit();
+                }}
+                disabled={readOnly}
+              >
+                Edit mission
+              </button>
+              {mission.quest_id && mission.quest_step && canAddNextStep ? (
+                <button
+                  type="button"
+                  className="min-h-10 rounded-full border border-indigo-brand/20 px-4 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onAddNextStep();
+                  }}
+                  disabled={readOnly}
+                >
+                  Add the next step
+                </button>
+              ) : null}
+            </div>
           ) : null}
           {isTakenOn && mission.myClaim?.state === 'claimed' ? (
             <div className="flex flex-wrap gap-2">
@@ -555,6 +614,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
   const refreshBoard = useCallback(async () => {
     const result = await listMissions();
     applyBoard(result);
+    return result;
   }, [applyBoard]);
 
   const loadProfile = useCallback(async (id: string) => {
@@ -658,7 +718,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
   };
 
   const saveMission = async (input: CreateMissionInput) => {
-    if (form === 'create') {
+    if (form === 'create' || isQuestExtension(form)) {
       const result = await createMission(input);
       if (result.data) {
         setMissions((current) => [
@@ -698,7 +758,8 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
   };
 
   const removeMission = async () => {
-    if (!form || form === 'create') return 'Choose a mission to delete.';
+    if (!form || form === 'create' || isQuestExtension(form)) return 'Choose a mission to delete.';
+    if (!canDeleteQuestStep(form, missions)) return 'This quest has a later step. Delete the later steps first.';
 
     const result = await deleteMission(form.id);
     if (result.error) return result.error;
@@ -767,6 +828,20 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       released_at: action === 'release' ? new Date().toISOString() : claimToChange.released_at
     };
     setMissions((current) => current.map((item) => (item.id === mission.id ? updateClaimOnMission(item, claim, userId) : item)));
+    if (!result.queued && (action === 'done' || action === 'approve') && mission.quest_id && mission.quest_step) {
+      const board = await refreshBoard();
+      if (
+        board.data.some(
+          (item) =>
+            item.quest_id === mission.quest_id &&
+            item.quest_step !== null &&
+            item.quest_step > mission.quest_step!
+        )
+      ) {
+        setActionNotice('Something opened up.');
+        return;
+      }
+    }
     setActionNotice(
       result.queued
         ? `${action === 'done' ? 'Done' : action === 'release' ? 'Release' : action === 'submit' ? 'Submission' : action === 'approve' ? 'Approval' : 'Response'} is waiting for signal.`
@@ -897,6 +972,18 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
         onSelectGrid={onSelectGrid}
         onToggleFavorite={() => toggleMissionFavorite(mission.id)}
         onEdit={() => setForm(mission)}
+        onAddNextStep={() => {
+          if (!mission.quest_id || !mission.quest_step) return;
+          setForm({ questId: mission.quest_id, questStep: mission.quest_step + 1 });
+        }}
+        canAddNextStep={
+          !missions.some(
+            (item) =>
+              item.quest_id === mission.quest_id &&
+              item.quest_step !== null &&
+              item.quest_step > (mission.quest_step ?? 0)
+          )
+        }
         onClaim={() => void claim(mission)}
         onDone={(claimToChange) => void changeClaim(mission, claimToChange, 'done')}
         onSubmit={(claimToChange) => void changeClaim(mission, claimToChange, 'submit')}
@@ -906,6 +993,8 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       />
     </SwipeableCard>
   );
+  const editingMission = form && form !== 'create' && !isQuestExtension(form) ? form : null;
+  const questExtension = isQuestExtension(form) ? form : undefined;
 
   return (
     <div id="missions-tab" className="space-y-5 scroll-mt-4">
@@ -974,11 +1063,12 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
 
       {form ? (
         <MissionForm
-          key={form === 'create' ? 'create' : form.id}
-          mission={form === 'create' ? null : form}
+          key={form === 'create' ? 'create' : isQuestExtension(form) ? `quest-${form.questId}-${form.questStep}` : form.id}
+          mission={editingMission}
+          quest={questExtension}
           onClose={() => setForm(null)}
           onSave={saveMission}
-          onDelete={form === 'create' ? undefined : removeMission}
+          onDelete={editingMission ? removeMission : undefined}
         />
       ) : hasMissions ? (
         <button

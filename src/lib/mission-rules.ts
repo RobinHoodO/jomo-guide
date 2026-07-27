@@ -1,4 +1,4 @@
-import type { CapacityType, CreateMissionInput, MissionVisibility, RewardKind, UpdateMissionInput } from './missions';
+import type { CapacityType, CreateMissionInput, MissionVisibility, QuestReveal, RewardKind, UpdateMissionInput } from './missions';
 
 export type NormalizedCreateInput = {
   title: string;
@@ -14,6 +14,9 @@ export type NormalizedCreateInput = {
   reward_threshold: number | null;
   reward_body: string | null;
   reward_closer_body: string | null;
+  quest_id: string | null;
+  quest_step: number | null;
+  quest_reveal: QuestReveal | null;
 };
 
 export type Validation<T> = { data: T; error: null } | { data: null; error: string };
@@ -28,6 +31,10 @@ export function isVisibility(value: unknown): value is MissionVisibility {
 
 export function isRewardKind(value: unknown): value is RewardKind {
   return value === 'content' || value === 'clue' || value === 'roster' || value === 'handover';
+}
+
+export function isQuestReveal(value: unknown): value is QuestReveal {
+  return value === 'hint' || value === 'length';
 }
 
 export function validLimitedCapacity(value: unknown): value is number {
@@ -119,6 +126,49 @@ function normalizeReward(
   };
 }
 
+type NormalizedQuest = {
+  quest_id: string | null;
+  quest_step: number | null;
+  quest_reveal: QuestReveal | null;
+};
+
+function normalizeQuest(
+  idValue: unknown,
+  stepValue: unknown,
+  revealValue: unknown
+): Validation<NormalizedQuest> {
+  const hasId = idValue !== null && idValue !== undefined;
+  const hasStep = stepValue !== null && stepValue !== undefined;
+  if (hasId !== hasStep) return { data: null, error: 'A quest needs both an id and a step.' };
+
+  if (!hasId) {
+    if (revealValue !== null && revealValue !== undefined) {
+      return { data: null, error: 'Quest reveal is only available on the first step.' };
+    }
+    return { data: { quest_id: null, quest_step: null, quest_reveal: null }, error: null };
+  }
+
+  if (typeof idValue !== 'string' || !idValue.trim()) {
+    return { data: null, error: 'A quest needs both an id and a step.' };
+  }
+  if (typeof stepValue !== 'number' || !Number.isInteger(stepValue) || stepValue < 1) {
+    return { data: null, error: 'A quest step must be a whole number of at least 1.' };
+  }
+
+  const quest_reveal = revealValue ?? null;
+  if (quest_reveal !== null && !isQuestReveal(quest_reveal)) {
+    return { data: null, error: 'Choose how to reveal the quest.' };
+  }
+  if (quest_reveal !== null && stepValue !== 1) {
+    return { data: null, error: 'Quest reveal is only available on the first step.' };
+  }
+
+  return {
+    data: { quest_id: idValue.trim(), quest_step: stepValue, quest_reveal },
+    error: null
+  };
+}
+
 export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()): Validation<NormalizedCreateInput> {
   const title = validateTitle(input.title);
   if (title.error !== null) return { data: null, error: title.error };
@@ -169,6 +219,9 @@ export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()
   const reward = normalizeReward(input.reward_kind, input.reward_threshold, input.reward_body, input.reward_closer_body);
   if (reward.error !== null) return { data: null, error: reward.error };
 
+  const quest = normalizeQuest(input.quest_id, input.quest_step, input.quest_reveal);
+  if (quest.error !== null) return { data: null, error: quest.error };
+
   return {
     data: {
       title: title.data,
@@ -180,7 +233,8 @@ export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()
       expires_at: expiresAt.data,
       requires_presence: presence.data,
       requires_verification: verification.data,
-      ...reward.data
+      ...reward.data,
+      ...quest.data
     },
     error: null
   };
@@ -238,6 +292,12 @@ export function normalizeUpdateInput(input: UpdateMissionInput, now = Date.now()
     Object.assign(patch, reward.data);
   }
 
+  if ('quest_id' in input || 'quest_step' in input || 'quest_reveal' in input) {
+    const quest = normalizeQuest(input.quest_id, input.quest_step, input.quest_reveal);
+    if (quest.error !== null) return { data: null, error: quest.error };
+    Object.assign(patch, quest.data);
+  }
+
   if ('capacity_type' in input) {
     if (!isCapacityType(input.capacity_type)) {
       return { data: null, error: 'Choose an open, limited, or exclusive capacity.' };
@@ -279,4 +339,18 @@ export function canClaimHere(
 
   const missionCell = canonicalize(mission.grid_ref);
   return missionCell !== null && missionCell === canonicalize(currentCell);
+}
+
+export function canDeleteQuestStep(
+  mission: { quest_id: string | null; quest_step: number | null },
+  missions: Array<{ quest_id: string | null; quest_step: number | null }>
+): boolean {
+  if (!mission.quest_id || mission.quest_step === null) return true;
+
+  return !missions.some(
+    (candidate) =>
+      candidate.quest_id === mission.quest_id &&
+      candidate.quest_step !== null &&
+      candidate.quest_step > mission.quest_step!
+  );
 }

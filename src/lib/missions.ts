@@ -9,6 +9,7 @@ export type CapacityType = 'open' | 'limited' | 'exclusive';
 export type MissionVisibility = 'public' | 'hidden';
 export type ClaimState = 'claimed' | 'done' | 'released' | 'submitted';
 export type RewardKind = 'content' | 'clue' | 'roster' | 'handover';
+export type QuestReveal = 'hint' | 'length';
 
 export type Profile = {
   id: string;
@@ -31,6 +32,9 @@ export type Mission = {
   expires_at: string | null;
   reward_kind: RewardKind | null;
   reward_threshold: number | null;
+  quest_id: string | null;
+  quest_step: number | null;
+  quest_reveal: QuestReveal | null;
   created_at: string;
   updated_at: string;
 };
@@ -66,6 +70,9 @@ export type CreateMissionInput = {
   reward_threshold?: number | null;
   reward_body?: string | null;
   reward_closer_body?: string | null;
+  quest_id?: string | null;
+  quest_step?: number | null;
+  quest_reveal?: QuestReveal | null;
 };
 
 export type UpdateMissionInput = Partial<
@@ -83,6 +90,9 @@ export type UpdateMissionInput = Partial<
     | 'expires_at'
     | 'reward_kind'
     | 'reward_threshold'
+    | 'quest_id'
+    | 'quest_step'
+    | 'quest_reveal'
   >
 > & {
   reward_body?: string | null;
@@ -116,6 +126,13 @@ export type MissionReward = {
 export type MissionRewardPayload = {
   body: string;
   closer_body: string | null;
+};
+
+export type QuestShape = {
+  steps: number | null;
+  reveal: QuestReveal | null;
+  has_more: boolean;
+  your_progress: number | null;
 };
 
 type MissionRowWithClaims = Mission & { mission_claims?: Claim[] | null };
@@ -404,6 +421,24 @@ export async function getMissionRewardPayload(missionId: string): Promise<Missio
   } catch (error) {
     return fail<MissionRewardPayload>(
       isConnectivityError(error) ? 'The channel is quiet from here. Try again when you have signal.' : errorMessage(error, 'That reward could not be loaded right now.')
+    );
+  }
+}
+
+export async function getQuestShape(questId: string): Promise<MissionResult<QuestShape>> {
+  if (!validId(questId)) return fail<QuestShape>('A quest id is required.');
+  if (!canSpendBandwidth()) return fail<QuestShape>('The channel is quiet from here. Try opening this quest again when you have signal.');
+
+  const supabase = getSupabase();
+  if (!supabase) return fail<QuestShape>('The channel is quiet from here. Try opening this quest again when you have signal.');
+
+  try {
+    const { data, error } = await supabase.rpc('quest_shape', { p_quest_id: questId });
+    if (error) throw error;
+    return result(data as QuestShape);
+  } catch (error) {
+    return fail<QuestShape>(
+      isConnectivityError(error) ? 'The channel is quiet from here. Try opening this quest again when you have signal.' : errorMessage(error, 'That quest could not be opened right now.')
     );
   }
 }
