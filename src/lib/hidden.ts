@@ -43,11 +43,30 @@ function constantTimeEquals(left: string, right: string) {
   return difference === 0;
 }
 
+/**
+ * Grid codes reach us in two different shapes: the map renders zero-padded codes
+ * (`B03`, see MAP_CELLS in lib/events.ts) while the GPS path builds unpadded ones
+ * (`B3`). Canonicalise to the unpadded, human-speakable form — the one you'd say
+ * out loud — so the hash matches whichever path asked, and so the same string is
+ * what scripts/secret-cell-hash.mjs hashes. Returns null for anything unparseable.
+ */
+export function canonicalCell(code: string): string | null {
+  const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
+  if (!match) return null;
+
+  const row = Number(match[2]);
+  if (!Number.isFinite(row) || row < 1) return null;
+
+  return `${match[1]}${row}`;
+}
+
 async function hashMatchesCell(code: string, expectedHash: string | undefined): Promise<boolean> {
   try {
     if (!expectedHash || typeof crypto === 'undefined' || !crypto.subtle) return false;
 
-    const normalizedCode = code.trim().toUpperCase();
+    const normalizedCode = canonicalCell(code);
+    if (!normalizedCode) return false;
+
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalizedCode));
     const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 
@@ -63,7 +82,9 @@ function memoizedCellMatch(
   cache: Map<string, Promise<boolean>>
 ): Promise<boolean> {
   try {
-    const normalizedCode = code.trim().toUpperCase();
+    const normalizedCode = canonicalCell(code);
+    if (!normalizedCode) return Promise.resolve(false);
+
     const cached = cache.get(normalizedCode);
     if (cached) return cached;
 
