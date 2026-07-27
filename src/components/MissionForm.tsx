@@ -1,0 +1,246 @@
+import { useState, type CSSProperties, type FormEvent } from 'react';
+import type { CapacityType, CreateMissionInput, Mission } from '../lib/missions';
+
+type MissionFormProps = {
+  mission: Mission | null;
+  onClose: () => void;
+  onSave: (input: CreateMissionInput) => Promise<string | null>;
+  onDelete?: () => Promise<string | null>;
+};
+
+type FieldName = 'title' | 'description' | 'capacity' | 'form';
+
+function localDateTime(value: string | null) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function toIso(value: string) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+function fieldForError(message: string): FieldName {
+  if (/title/i.test(message)) return 'title';
+  if (/description/i.test(message)) return 'description';
+  if (/capacity|limited|exclusive|open missions/i.test(message)) return 'capacity';
+  return 'form';
+}
+
+export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormProps) {
+  const [title, setTitle] = useState(mission?.title ?? '');
+  const [description, setDescription] = useState(mission?.description ?? '');
+  const [capacityType, setCapacityType] = useState<CapacityType>(mission?.capacity_type ?? 'open');
+  const [capacity, setCapacity] = useState(
+    mission?.capacity_type === 'limited' && mission.capacity !== null ? String(mission.capacity) : ''
+  );
+  const [gridRef, setGridRef] = useState(mission?.grid_ref ?? '');
+  const [expiresAt, setExpiresAt] = useState(localDateTime(mission?.expires_at ?? null));
+  const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+
+  const clearError = (field: FieldName) => {
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setErrors({});
+
+    const error = await onSave({
+      title,
+      description,
+      capacity_type: capacityType,
+      capacity: capacityType === 'limited' ? Number(capacity) : null,
+      grid_ref: gridRef.trim() || null,
+      expires_at: toIso(expiresAt)
+    });
+
+    setSaving(false);
+    if (error) {
+      setErrors({ [fieldForError(error)]: error });
+      return;
+    }
+
+    onClose();
+  };
+
+  const deleteMission = async () => {
+    if (!onDelete) return;
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      return;
+    }
+
+    setSaving(true);
+    const error = await onDelete();
+    setSaving(false);
+    if (error) {
+      setErrors({ form: error });
+      return;
+    }
+
+    onClose();
+  };
+
+  return (
+    <section
+      className="event-card is-expanded space-y-3"
+      style={{ '--category-color': 'var(--pink)' } as CSSProperties}
+    >
+      <div>
+        <p className="section-kicker text-pink">{mission ? 'Your mission' : 'New mission'}</p>
+        <h3 className="display-heading mt-0.5 text-base text-indigo-brand">
+          {mission ? 'Change the invitation' : 'Leave a tiny invitation'}
+        </h3>
+      </div>
+
+      <form className="space-y-3" onSubmit={submit} noValidate>
+        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-title">
+          Title
+          <input
+            id="mission-title"
+            className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+            value={title}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              clearError('title');
+            }}
+            maxLength={140}
+            required
+            aria-invalid={Boolean(errors.title)}
+            aria-describedby={errors.title ? 'mission-title-error' : undefined}
+          />
+          {errors.title ? <span id="mission-title-error" className="mt-1 block text-xs font-semibold text-pink">{errors.title}</span> : null}
+        </label>
+
+        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-description">
+          Description <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
+          <textarea
+            id="mission-description"
+            className="mt-1 min-h-24 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+            value={description}
+            onChange={(event) => {
+              setDescription(event.target.value);
+              clearError('description');
+            }}
+            maxLength={4000}
+            aria-invalid={Boolean(errors.description)}
+            aria-describedby={errors.description ? 'mission-description-error' : undefined}
+          />
+          {errors.description ? <span id="mission-description-error" className="mt-1 block text-xs font-semibold text-pink">{errors.description}</span> : null}
+        </label>
+
+        <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity-type">
+          Who can take it on?
+          <select
+            id="mission-capacity-type"
+            className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+            value={capacityType}
+            onChange={(event) => {
+              setCapacityType(event.target.value as CapacityType);
+              clearError('capacity');
+            }}
+          >
+            <option value="open">Open to everyone</option>
+            <option value="limited">Limited spots</option>
+            <option value="exclusive">One person only</option>
+          </select>
+        </label>
+
+        {capacityType === 'limited' ? (
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-capacity">
+            Number of spots
+            <input
+              id="mission-capacity"
+              className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              value={capacity}
+              onChange={(event) => {
+                setCapacity(event.target.value);
+                clearError('capacity');
+              }}
+              aria-invalid={Boolean(errors.capacity)}
+              aria-describedby={errors.capacity ? 'mission-capacity-error' : undefined}
+            />
+            {errors.capacity ? <span id="mission-capacity-error" className="mt-1 block text-xs font-semibold text-pink">{errors.capacity}</span> : null}
+          </label>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-grid-ref">
+            Grid ref <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
+            <input
+              id="mission-grid-ref"
+              className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              value={gridRef}
+              onChange={(event) => setGridRef(event.target.value)}
+              placeholder="e.g. F4"
+            />
+          </label>
+
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-expires-at">
+            Expires <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
+            <input
+              id="mission-expires-at"
+              className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(event) => setExpiresAt(event.target.value)}
+            />
+          </label>
+        </div>
+
+        {errors.form ? <p className="text-xs font-semibold text-pink">{errors.form}</p> : null}
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="submit"
+            className="min-h-10 rounded-full bg-pink px-4 text-xs font-black text-cream transition-colors hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : mission ? 'Save mission' : 'Create mission'}
+          </button>
+          <button
+            type="button"
+            className="min-h-10 rounded-full border border-indigo-brand/20 px-4 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          {onDelete ? (
+            <button
+              type="button"
+              className={`min-h-10 rounded-full px-4 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50 ${
+                deleteArmed
+                  ? 'bg-pink text-cream hover:bg-yellow hover:text-indigo-brand'
+                  : 'border border-pink/35 text-pink hover:bg-pink hover:text-cream'
+              }`}
+              onClick={() => void deleteMission()}
+              disabled={saving}
+            >
+              {deleteArmed ? 'Tap again to delete' : 'Delete mission'}
+            </button>
+          ) : null}
+        </div>
+      </form>
+    </section>
+  );
+}

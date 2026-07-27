@@ -309,6 +309,71 @@ main.is-plain-bg .ambient-blobs {
   display: none;
 }
 
+main {
+  transition: background-color 500ms ease, color 500ms ease;
+}
+
+main[data-presence='true'] {
+  --navy: #030706;
+  --cream: #eafff1;
+  --indigo: #9dffd0;
+  --muted-indigo: #b9dfc8;
+  --pink: #53ffad;
+  --sky: #71d8ff;
+  --yellow: #e4ff83;
+  --leaf: #78ffb2;
+  --color-navy: #030706;
+  --color-cream: #eafff1;
+  --color-indigo-brand: #9dffd0;
+  --color-pink: #53ffad;
+  --color-sky: #71d8ff;
+  --color-yellow: #e4ff83;
+  --color-leaf: #78ffb2;
+  background: #030706;
+  color: var(--cream);
+}
+
+main[data-presence='true'] .ambient-blobs {
+  background: #030706;
+  filter: saturate(0.25) brightness(0.36);
+  opacity: 0.38;
+  transition: background-color 500ms ease, filter 500ms ease, opacity 500ms ease;
+}
+
+main[data-presence='true'] .ambient-blob {
+  opacity: 0.24;
+  transition: opacity 500ms ease;
+}
+
+main[data-presence='true'] .panel-card,
+main[data-presence='true'] .event-card {
+  background: rgba(10, 22, 20, 0.94);
+  color: var(--cream);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.42);
+  transition: background-color 500ms ease, color 500ms ease, box-shadow 500ms ease;
+}
+
+main[data-presence='true'] .tabbar {
+  background: rgba(3, 7, 6, 0.72);
+  border-color: rgba(234, 255, 241, 0.22);
+  transition: background-color 500ms ease, border-color 500ms ease;
+}
+
+main[data-presence='true'] .tabbar button {
+  background: rgba(20, 49, 40, 0.92);
+  color: var(--cream);
+  transition: background-color 500ms ease, color 500ms ease;
+}
+
+main[data-presence='true'] .tabbar button.is-active {
+  background: var(--pink);
+  color: var(--navy);
+}
+
+.presence-place {
+  color: var(--pink);
+}
+
 .sparkle {
   @apply h-4 w-4 shrink-0;
   fill: currentColor;
@@ -432,7 +497,7 @@ main.is-plain-bg .ambient-blobs {
 }
 
 .tabbar {
-  @apply grid grid-cols-5 gap-1 p-1;
+  @apply grid gap-1 p-1;
   background: rgba(22, 27, 51, 0.28);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
   backdrop-filter: blur(14px) saturate(1.2);
@@ -474,6 +539,36 @@ main.is-plain-bg .ambient-blobs {
   color: var(--cream);
   border: 1px solid rgba(242, 235, 217, 0.22);
   box-shadow: 0 10px 30px rgba(7, 10, 30, 0.28);
+}
+
+.establishing-link {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: #020403;
+  color: #dfffee;
+  cursor: pointer;
+}
+
+.establishing-link-terminal {
+  width: min(100%, 34rem);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+.establishing-link-line {
+  margin: 0;
+}
+
+.establishing-link-line::before {
+  content: "> ";
+  color: #53ffad;
 }
 
 .swipe-wrap {

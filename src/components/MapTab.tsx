@@ -14,6 +14,7 @@ import {
   type MapCell
 } from '../lib/events';
 import { latLonToGrid, type GridPosition } from '../lib/geo';
+import { isUnlocked, matchesSecretCell, unlock } from '../lib/hidden';
 import { MAP_META, PLACES, PLAZAS, type Place } from '../data/info-content';
 
 type MapTabProps = {
@@ -22,6 +23,7 @@ type MapTabProps = {
   onSelectCamp: (campId: string) => void;
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
+  onUnlock: () => void;
 };
 
 const NEIGHBORHOOD_COLORS = [
@@ -58,7 +60,8 @@ const ART_OFFSET_X = 0; // Horizontal artwork calibration in SVG units.
 const ART_OFFSET_Y = 0; // Vertical artwork calibration in SVG units.
 const ART_SCALE_X = 1; // Artwork width multiplier.
 const ART_SCALE_Y = 1; // Artwork height multiplier.
-
+const HOLD_DURATION_MS = 2000;
+const HOLD_MOVE_THRESHOLD_PX = 10;
 type MapView = 'events' | 'plazas' | 'places';
 
 const MAP_VIEWS: Array<{ key: MapView; label: string }> = [
@@ -215,7 +218,7 @@ const PLACE_LEGEND: Array<{ label: string; sample: Place }> = (() => {
   return rows;
 })();
 
-export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite }: MapTabProps) {
+export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite, onUnlock }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
   const [showFreeFloating, setShowFreeFloating] = useState(false);
   const [mapView, setMapView] = useState<MapView>('events');
@@ -225,6 +228,9 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
     note: null
   });
   const watchIdRef = useRef<number | null>(null);
+  const holdRef = useRef<{ pointerId: number; startX: number; startY: number; timer: number; token: number } | null>(null);
+  const holdGenerationRef = useRef(0);
+  const suppressNextCellClickRef = useRef(false);
   const selectedCell = selectedGrid ? MAP_CELLS_BY_CODE.get(selectedGrid) || null : null;
   const groupedSelectedEvents = useMemo(() => groupByDay(selectedCell?.events || []), [selectedCell?.events]);
   const groupedFreeFloatingEvents = useMemo(() => groupByDay(FREE_FLOATING_EVENTS), []);
@@ -236,8 +242,76 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
       if (watchIdRef.current !== null && 'geolocation' in navigator) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+      if (holdRef.current !== null) {
+        window.clearTimeout(holdRef.current.timer);
+        holdRef.current = null;
+        holdGenerationRef.current += 1;
+      }
     };
   }, []);
+
+  const cancelCellHold = (pointerId?: number) => {
+    const hold = holdRef.current;
+    if (!hold || (pointerId !== undefined && hold.pointerId !== pointerId)) return;
+
+    window.clearTimeout(hold.timer);
+    holdRef.current = null;
+    holdGenerationRef.current += 1;
+  };
+
+  const releasePointer = (target: SVGGElement, pointerId: number) => {
+    try {
+      if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+    } catch {
+      // Pointer capture is a progressive enhancement for gestures that leave the cell.
+    }
+  };
+
+  const startCellHold = (event: React.PointerEvent<SVGGElement>, cellCode: string) => {
+    if (isUnlocked() || event.button !== 0) return;
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is not available in every SVG implementation.
+    }
+
+    const token = ++holdGenerationRef.current;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        if (holdRef.current?.token !== token || isUnlocked()) return;
+
+        const isSecretCell = await matchesSecretCell(cellCode);
+        if (holdGenerationRef.current !== token || holdRef.current?.token !== token || isUnlocked()) return;
+
+        holdRef.current = null;
+        if (!isSecretCell) return;
+
+        suppressNextCellClickRef.current = true;
+        unlock();
+        navigator.vibrate?.(60);
+        onUnlock();
+      })();
+    }, HOLD_DURATION_MS);
+
+    holdRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer,
+      token
+    };
+  };
+
+  const moveCellHold = (event: React.PointerEvent<SVGGElement>) => {
+    const hold = holdRef.current;
+    if (!hold || hold.pointerId !== event.pointerId) return;
+
+    if (Math.hypot(event.clientX - hold.startX, event.clientY - hold.startY) > HOLD_MOVE_THRESHOLD_PX) {
+      cancelCellHold(event.pointerId);
+      releasePointer(event.currentTarget, event.pointerId);
+    }
+  };
 
   const startLocationWatch = () => {
     if (!('geolocation' in navigator)) {
@@ -425,7 +499,23 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                 role="button"
                 tabIndex={0}
                 aria-label={`${cell.code}: ${cell.eventCount} events${cell.neighborhood ? ` in ${cell.neighborhood}` : ''}`}
-                onClick={() => onSelectGrid(cell.code)}
+                onClick={() => {
+                  if (suppressNextCellClickRef.current) {
+                    suppressNextCellClickRef.current = false;
+                    return;
+                  }
+                  onSelectGrid(cell.code);
+                }}
+                onPointerDown={(event) => startCellHold(event, cell.code)}
+                onPointerMove={moveCellHold}
+                onPointerUp={(event) => {
+                  cancelCellHold(event.pointerId);
+                  releasePointer(event.currentTarget, event.pointerId);
+                }}
+                onPointerCancel={(event) => {
+                  cancelCellHold(event.pointerId);
+                  releasePointer(event.currentTarget, event.pointerId);
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();

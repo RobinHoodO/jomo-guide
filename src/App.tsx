@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Destinations } from './components/Destinations';
+import { EstablishingLink } from './components/EstablishingLink';
 import { InfoTab } from './components/InfoTab';
 import { InstallBanner } from './components/InstallBanner';
 import { MapTab } from './components/MapTab';
+import { Missions } from './components/Missions';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
 import { PullToRefresh } from './components/PullToRefresh';
@@ -13,10 +15,16 @@ import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
 import { clearEventParam, readEventIdFromUrl } from './lib/deeplink';
 import { initInstall } from './lib/install';
+import {
+  getSnapshot as getHiddenSnapshot,
+  PRESENCE_PLACE_NAME,
+  subscribe as subscribeHidden,
+  subscribePresence
+} from './lib/hidden';
 import { canSpendBandwidth } from './lib/network';
 import { flushUsage, recordOpen } from './lib/usage';
 
-type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info';
+type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info' | 'missions';
 type CampSelection = { id: string; token: number };
 type SharedEvent = { id: string; title: string };
 
@@ -26,7 +34,8 @@ function TabIcon({ name }: { name: Tab }) {
     schedule: <path d="M12 3.25 14.75 8.82l6.15.9-4.45 4.34 1.05 6.12L12 17.29l-5.5 2.89 1.05-6.12L3.1 9.72l6.15-.9L12 3.25Z" />,
     map: <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15" />,
     camps: <path d="M12 4 3 20h18L12 4Zm0 0v16" />,
-    info: <path d="M12 17v-6m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    info: <path d="M12 17v-6m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+    missions: <path d="m5 12 4.5 4.5L19 7" />
   };
 
   return (
@@ -46,17 +55,29 @@ function TabIcon({ name }: { name: Tab }) {
 }
 
 export default function App() {
+  const { unlocked } = useSyncExternalStore(subscribeHidden, getHiddenSnapshot, getHiddenSnapshot);
   const [tab, setTab] = useState<Tab>('program');
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [plainBg, setPlainBg] = useState(false);
   const [sharedEvent, setSharedEvent] = useState<SharedEvent | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [presence, setPresence] = useState(false);
   const toastTimer = useRef<number | null>(null);
   const deepLinkHighlightTimer = useRef<number | null>(null);
   const onlineFlushTimer = useRef<number | null>(null);
   const hasRecordedOpen = useRef(false);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+
+  const handleUnlock = useCallback(() => {
+    setTab('missions');
+    setLinkOpen(true);
+  }, []);
+
+  const closeLink = useCallback(() => {
+    setLinkOpen(false);
+  }, []);
 
   useEffect(() => {
     initInstall();
@@ -86,6 +107,15 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!unlocked) {
+      setPresence(false);
+      return;
+    }
+
+    return subscribePresence(setPresence);
+  }, [unlocked]);
 
   useEffect(() => {
     const eventId = readEventIdFromUrl();
@@ -151,7 +181,10 @@ export default function App() {
   return (
     <>
       {canSpendBandwidth() ? <Analytics /> : null}
-      <main className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}>
+      <main
+        className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}
+        data-presence={presence ? 'true' : undefined}
+      >
       <InstallBanner onOpenInfo={() => setTab('info')} />
       <UpdateBanner />
       <div className="ambient-blobs" aria-hidden="true">
@@ -174,6 +207,7 @@ export default function App() {
                 <p className="mt-1 max-w-xl text-sm leading-5 text-cream">
                   Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
                 </p>
+                {presence ? <p className="section-kicker presence-place mt-2">{PRESENCE_PLACE_NAME}</p> : null}
               </div>
               <div className="flex items-start gap-1.5">
                 <img
@@ -199,7 +233,7 @@ export default function App() {
             <p className="header-credits">
               Gifted to you by Schoepa, Larissa, Alex, Maja, Robin, Fay, Marcus & Anuta &lt;3
             </p>
-            <nav className="tabbar" aria-label="Main tabs">
+            <nav className={`tabbar ${unlocked ? 'grid-cols-6' : 'grid-cols-5'}`} aria-label="Main tabs">
               <button
                 type="button"
                 className={tab === 'program' ? 'is-active' : ''}
@@ -241,6 +275,16 @@ export default function App() {
                 <TabIcon name="info" />
                 <span>Info</span>
               </button>
+              {unlocked ? (
+                <button
+                  type="button"
+                  className={tab === 'missions' ? 'is-active' : ''}
+                  onClick={() => setTab('missions')}
+                >
+                  <TabIcon name="missions" />
+                  <span>Missions</span>
+                </button>
+              ) : null}
             </nav>
           </header>
 
@@ -272,6 +316,7 @@ export default function App() {
               onSelectCamp={selectCamp}
               isFavorite={isFavorite}
               toggleFavorite={handleToggleFavorite}
+              onUnlock={handleUnlock}
             />
           ) : null}
 
@@ -286,6 +331,8 @@ export default function App() {
           ) : null}
 
           {tab === 'info' ? <InfoTab /> : null}
+
+          {tab === 'missions' ? <Missions onSelectGrid={selectGrid} onSelectCamp={selectCamp} /> : null}
 
           <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
             Unofficial companion, made by a burner. Works offline after first load; your stars stay on this phone.{' '}
@@ -306,6 +353,7 @@ export default function App() {
         </div>
       ) : null}
       </main>
+      <EstablishingLink open={linkOpen} onClose={closeLink} />
     </>
   );
 }
