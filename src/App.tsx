@@ -9,6 +9,7 @@ import { Missions } from './components/Missions';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
 import { PullToRefresh } from './components/PullToRefresh';
+import { QuantTerminal } from './components/QuantTerminal';
 import { Schedule } from './components/Schedule';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useFavorites } from './hooks/useFavorites';
@@ -21,6 +22,11 @@ import {
   subscribe as subscribeHidden,
   subscribePresence
 } from './lib/hidden';
+import {
+  dismissGridExperience,
+  getGridExperienceSnapshot,
+  subscribeGridExperience
+} from './lib/grid-experiences';
 import { canSpendBandwidth } from './lib/network';
 import { flushUsage, recordOpen } from './lib/usage';
 
@@ -57,6 +63,11 @@ function TabIcon({ name }: { name: Tab }) {
 
 export default function App() {
   const { unlocked } = useSyncExternalStore(subscribeHidden, getHiddenSnapshot, getHiddenSnapshot);
+  const gridExperience = useSyncExternalStore(
+    subscribeGridExperience,
+    getGridExperienceSnapshot,
+    getGridExperienceSnapshot
+  );
   const [tab, setTab] = useState<Tab>('program');
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
@@ -185,27 +196,49 @@ export default function App() {
     toggleFavorite(id);
   };
 
+  const isQuantTerminalActive = gridExperience === 'quant-terminal';
+
   return (
     <>
       {canSpendBandwidth() ? <Analytics /> : null}
       <main
         className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}
-        data-presence={presence ? 'true' : undefined}
+        data-presence={isQuantTerminalActive ? undefined : presence ? 'true' : undefined}
+        data-quant={isQuantTerminalActive ? 'true' : undefined}
       >
-      <InstallBanner onOpenInfo={() => setTab('info')} />
-      <UpdateBanner />
-      <div className="ambient-blobs" aria-hidden="true">
-        <div className="ambient-blob ambient-blob-1" />
-        <div className="ambient-blob ambient-blob-2" />
-        <div className="ambient-blob ambient-blob-3" />
-        <div className="ambient-blob ambient-blob-4" />
-        <div className="ambient-blob ambient-blob-5" />
-        <div className="ambient-blob ambient-blob-6" />
-        <div className="ambient-blob ambient-blob-7" />
-        <div className="ambient-blob ambient-blob-8" />
-      </div>
-      <PullToRefresh>
-        <div className="relative z-10 mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
+        {isQuantTerminalActive ? (
+          <>
+            <UpdateBanner />
+            <div className="quant-shell">
+              <MapTab
+                selectedGrid={selectedGrid}
+                onSelectGrid={selectGrid}
+                onSelectCamp={selectCamp}
+                isFavorite={isFavorite}
+                toggleFavorite={handleToggleFavorite}
+                onUnlock={handleUnlock}
+                onOpenMissions={() => setTab('missions')}
+                onOpenMission={selectMission}
+              />
+              <QuantTerminal onDecline={() => dismissGridExperience('quant-terminal')} />
+            </div>
+          </>
+        ) : (
+          <>
+            <InstallBanner onOpenInfo={() => setTab('info')} />
+            <UpdateBanner />
+            <div className="ambient-blobs" aria-hidden="true">
+              <div className="ambient-blob ambient-blob-1" />
+              <div className="ambient-blob ambient-blob-2" />
+              <div className="ambient-blob ambient-blob-3" />
+              <div className="ambient-blob ambient-blob-4" />
+              <div className="ambient-blob ambient-blob-5" />
+              <div className="ambient-blob ambient-blob-6" />
+              <div className="ambient-blob ambient-blob-7" />
+              <div className="ambient-blob ambient-blob-8" />
+            </div>
+            <PullToRefresh>
+              <div className="relative z-10 mx-auto min-h-screen w-full max-w-xl px-4 py-4 sm:py-6">
           <header className="guide-header mb-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -356,15 +389,17 @@ export default function App() {
               Open source on GitHub
             </a>
           </footer>
-        </div>
-      </PullToRefresh>
-      {showSavedToast ? (
-        <div className="toast" role="status" aria-live="polite">
-          Saved to your Schedule ⭐
-        </div>
-      ) : null}
+              </div>
+            </PullToRefresh>
+            {showSavedToast ? (
+              <div className="toast" role="status" aria-live="polite">
+                Saved to your Schedule ⭐
+              </div>
+            ) : null}
+          </>
+        )}
       </main>
-      <EstablishingLink open={linkOpen} onClose={closeLink} />
+      {isQuantTerminalActive ? null : <EstablishingLink open={linkOpen} onClose={closeLink} />}
     </>
   );
 }

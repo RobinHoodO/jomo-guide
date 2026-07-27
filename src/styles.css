@@ -378,6 +378,141 @@ main[data-presence='true'] .tabbar button.is-active {
   color: var(--navy);
 }
 
+main[data-quant='true'] {
+  --navy: #020704;
+  --cream: #d7ffe2;
+  --indigo: #33ff66;
+  --muted-indigo: #8ecfa2;
+  --pink: #33ff66;
+  --color-navy: #020704;
+  --color-cream: #d7ffe2;
+  --color-indigo-brand: #33ff66;
+  --color-pink: #33ff66;
+  background: #020704;
+  color: #33ff66;
+  caret-color: #33ff66;
+}
+
+main[data-quant='true'] ::selection {
+  background: #33ff66;
+  color: #020704;
+}
+
+.quant-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 36rem);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.quant-terminal {
+  margin-top: 1.5rem;
+  min-height: 17rem;
+  padding: 1rem;
+  overflow: hidden;
+  color: #33ff66;
+  background: #020704;
+  border: 1px solid rgba(51, 255, 102, 0.5);
+  box-shadow: inset 0 0 32px rgba(51, 255, 102, 0.05), 0 0 24px rgba(51, 255, 102, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.quant-terminal-output {
+  max-height: 21rem;
+  overflow-y: auto;
+  scrollbar-color: #33ff66 #020704;
+}
+
+.quant-terminal-output p {
+  margin: 0;
+  min-height: 1.6em;
+  white-space: pre-wrap;
+}
+
+.quant-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  margin-left: 0.12em;
+  vertical-align: -0.15em;
+  background: #33ff66;
+  animation: quant-cursor-blink 1s steps(1, end) infinite;
+}
+
+.quant-answer-form {
+  display: flex;
+  align-items: center;
+  min-height: 1.6em;
+}
+
+.quant-answer-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  color: #33ff66;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.quant-terminal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.quant-terminal-actions button,
+.quant-art-exit {
+  padding: 0.2rem 0.65rem;
+  color: #33ff66;
+  background: transparent;
+  border: 1px solid currentColor;
+  font: inherit;
+  text-transform: uppercase;
+}
+
+.quant-terminal-actions button:hover,
+.quant-terminal-actions button:focus-visible,
+.quant-art-exit:hover,
+.quant-art-exit:focus-visible {
+  color: #020704;
+  background: #33ff66;
+  outline: none;
+}
+
+.quant-art {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  background: #020704;
+}
+
+.quant-art-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.quant-art-exit {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.75rem;
+}
+
+@keyframes quant-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .presence-place {
   color: var(--pink);
 }
