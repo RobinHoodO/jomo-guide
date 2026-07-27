@@ -1,4 +1,4 @@
-import { memo, useState, type CSSProperties } from 'react';
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   CATEGORY_COLORS,
   FLAG_FILTERS,
@@ -9,6 +9,7 @@ import {
 } from '../lib/events';
 import { campForEvent } from '../lib/links';
 import { downloadEventIcs } from '../lib/ics';
+import { shareEvent } from '../lib/deeplink';
 
 type EventCardHeadingLevel = 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
@@ -58,6 +59,26 @@ function CalendarIcon() {
     >
       <path d="M8 3v3M16 3v3M4 8h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
       <path d="M12 12v5M9.5 14.5 12 17l2.5-2.5" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.4m-7.6 6.8 7.6 4.4" />
     </svg>
   );
 }
@@ -124,6 +145,8 @@ export const EventCard = memo(function EventCard({
   const softFlags = visibleFlags.filter(({ key }) => !WARNING_FLAGS.includes(key));
   const recurringSiblings = getRecurringSiblings(event);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<'share' | 'copy' | null>(null);
+  const shareTimer = useRef<number | null>(null);
   const siblingFavorite = isOccurrenceFavorite || ((id: string) => id === event.id && isFavorite);
   const categoryColor = CATEGORY_COLORS[event.category] || 'var(--pink)';
   const cardStyle = { '--category-color': categoryColor } as CSSProperties;
@@ -131,8 +154,26 @@ export const EventCard = memo(function EventCard({
   const TitleHeading = headingLevel;
   const toggleExpanded = () => setIsExpanded((value) => !value);
 
+  useEffect(() => {
+    return () => {
+      if (shareTimer.current !== null) window.clearTimeout(shareTimer.current);
+    };
+  }, []);
+
+  const handleShare = async () => {
+    const result = await shareEvent(event);
+    if (!result.ok) return;
+    if (shareTimer.current !== null) window.clearTimeout(shareTimer.current);
+    setShareFeedback(result.method);
+    shareTimer.current = window.setTimeout(() => {
+      setShareFeedback(null);
+      shareTimer.current = null;
+    }, 1600);
+  };
+
   return (
     <article
+      data-event-id={event.id}
       className={`event-card ${isExpanded ? 'is-expanded' : 'is-collapsed'} ${muted ? 'opacity-55 grayscale' : ''}`}
       style={cardStyle}
     >
@@ -211,6 +252,18 @@ export const EventCard = memo(function EventCard({
           ) : null}
           <button
             type="button"
+            className="icon-button"
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              void handleShare();
+            }}
+            aria-label="Share this event"
+            title="Share this event"
+          >
+            <ShareIcon />
+          </button>
+          <button
+            type="button"
             className={`icon-button ${isFavorite ? 'is-active' : ''}`}
             onClick={(clickEvent) => {
               clickEvent.stopPropagation();
@@ -223,6 +276,16 @@ export const EventCard = memo(function EventCard({
           </button>
         </div>
       </div>
+
+      {shareFeedback ? (
+        <p
+          className="mt-2 inline-flex rounded-full border border-cream/20 bg-pink px-3 py-1 text-xs font-black text-cream shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          {shareFeedback === 'copy' ? 'Link copied!' : 'Shared'}
+        </p>
+      ) : null}
 
       {isExpanded ? (
         <div className="event-expanded">

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Destinations } from './components/Destinations';
 import { InfoTab } from './components/InfoTab';
+import { InstallBanner } from './components/InstallBanner';
 import { MapTab } from './components/MapTab';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
@@ -9,9 +11,13 @@ import { Schedule } from './components/Schedule';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
+import { clearEventParam, readEventIdFromUrl } from './lib/deeplink';
+import { initInstall } from './lib/install';
+import { flushUsage, recordOpen } from './lib/usage';
 
 type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info';
 type CampSelection = { id: string; token: number };
+type SharedEvent = { id: string; title: string };
 
 function TabIcon({ name }: { name: Tab }) {
   const paths = {
@@ -44,14 +50,56 @@ export default function App() {
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [plainBg, setPlainBg] = useState(false);
+  const [sharedEvent, setSharedEvent] = useState<SharedEvent | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const deepLinkHighlightTimer = useRef<number | null>(null);
+  const hasRecordedOpen = useRef(false);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
   useEffect(() => {
+    initInstall();
+    if (!hasRecordedOpen.current) {
+      recordOpen();
+      flushUsage();
+      hasRecordedOpen.current = true;
+    }
+
+    const onOnline = () => flushUsage();
+    window.addEventListener('online', onOnline);
+
     return () => {
+      window.removeEventListener('online', onOnline);
       if (toastTimer.current !== null) {
         window.clearTimeout(toastTimer.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const eventId = readEventIdFromUrl();
+    const event = EVENTS.find((item) => item.id === eventId);
+    if (!eventId || !event) return;
+
+    setTab('program');
+    const frame = window.requestAnimationFrame(() => {
+      clearEventParam();
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-event-id]'));
+      const card = cards.find((item) => item.dataset.eventId === eventId && item.closest('.swipe-wrap'));
+      if (!card) {
+        setSharedEvent({ id: event.id, title: event.title });
+        return;
+      }
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+      deepLinkHighlightTimer.current = window.setTimeout(() => {
+        card.classList.remove('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+        deepLinkHighlightTimer.current = null;
+      }, 2000);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (deepLinkHighlightTimer.current !== null) window.clearTimeout(deepLinkHighlightTimer.current);
     };
   }, []);
 
@@ -89,7 +137,10 @@ export default function App() {
   };
 
   return (
-    <main className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}>
+    <>
+      <Analytics />
+      <main className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}>
+      <InstallBanner onOpenInfo={() => setTab('info')} />
       <UpdateBanner />
       <div className="ambient-blobs" aria-hidden="true">
         <div className="ambient-blob ambient-blob-1" />
@@ -187,6 +238,8 @@ export default function App() {
               toggleFavorite={handleToggleFavorite}
               onSelectGrid={selectGrid}
               onSelectCamp={selectCamp}
+              sharedEvent={sharedEvent}
+              onRevealSharedEvent={() => setSharedEvent(null)}
             />
           ) : null}
 
@@ -240,6 +293,7 @@ export default function App() {
           Saved to your Schedule ⭐
         </div>
       ) : null}
-    </main>
+      </main>
+    </>
   );
 }

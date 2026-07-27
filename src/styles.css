@@ -567,7 +567,7 @@ main.is-plain-bg .ambient-blobs {
 }
 
 .icon-button {
-  @apply grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
+  @apply grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35;
   background: rgba(255, 255, 255, 0.28);
   color: var(--indigo);
   border: 1.5px solid rgba(52, 55, 158, 0.14);

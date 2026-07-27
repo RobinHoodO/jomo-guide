@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string };
+const config = defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version)
+  },
   plugins: [
     react() as any,
     tailwindcss() as any,
@@ -49,6 +55,9 @@ export default defineConfig({
       }
     }) as any
   ],
+  build: {
+    sourcemap: true
+  },
   server: {
     port: 5174,
     strictPort: false
@@ -58,3 +67,16 @@ export default defineConfig({
     strictPort: false
   }
 });
+
+if (process.env.SENTRY_AUTH_TOKEN) {
+  config.plugins?.push(sentryVitePlugin({
+    org: 'thrivbe',
+    project: 'jomo-guide',
+    url: 'https://de.sentry.io',
+    sourcemaps: {
+      filesToDeleteAfterUpload: ['dist/**/*.map']
+    }
+  }) as any);
+}
+
+export default config;

@@ -11,3 +11,7 @@ jomo26-*.png
 .playwright-mcp/
 .vercel
 data/reconciliation-report.txt
+
+# local planning docs — never publish to the public repo
+*.private.md
+.tmp/

@@ -11,7 +11,23 @@ import './styles.css';
 if (import.meta.env.PROD) {
   Sentry.init({
     dsn: 'https://8fc1f3e8fc5ad60f61ed6d5216174c46@o4511115127750656.ingest.de.sentry.io/4511695122464848',
+    release: __APP_VERSION__,
     tracesSampleRate: 0.1,
+    // These come from in-app browser native bridges, not our app.
+    ignoreErrors: [
+      'Java object is gone',
+      'Method not found',
+      '__firefox__',
+      'window.webkit',
+      'Error invoking postMessage',
+      'Error invoking post',
+      'Error invoking postEvent',
+      'Error invoking enableDidUserTypeOnKeyboardLogging',
+    ],
+    denyUrls: [
+      /^iabjs:\/\//i,
+      /^(?!https?:\/\/)[a-z][a-z\d+.-]*:/i,
+    ],
   });
 }
 

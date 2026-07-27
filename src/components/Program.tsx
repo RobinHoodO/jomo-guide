@@ -3,6 +3,7 @@ import { FilterBar } from './FilterBar';
 import { NowNext } from './NowNext';
 import { Serendipity } from './Serendipity';
 import { SwipeableEventCard } from './SwipeableEventCard';
+import { TodayStrip } from './TodayStrip';
 import { useHidden } from '../hooks/useHidden';
 import { EVENTS, filterEvents, getNow, groupByDay, type EventItem, type Filters } from '../lib/events';
 
@@ -11,6 +12,8 @@ type ProgramProps = {
   toggleFavorite: (id: string) => void;
   onSelectGrid: (grid: string) => void;
   onSelectCamp: (campId: string) => void;
+  sharedEvent: { id: string; title: string } | null;
+  onRevealSharedEvent: () => void;
 };
 
 const EMPTY_FILTERS: Filters = {
@@ -32,8 +35,16 @@ function Sparkle({ className = '' }: { className?: string }) {
   );
 }
 
-export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp }: ProgramProps) {
+export function Program({
+  isFavorite,
+  toggleFavorite,
+  onSelectGrid,
+  onSelectCamp,
+  sharedEvent,
+  onRevealSharedEvent
+}: ProgramProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [eventToReveal, setEventToReveal] = useState<string | null>(null);
   const { hiddenIds, isHidden, hide, unhide, unhideAll } = useHidden();
   const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
   const undoTimer = useRef<number | null>(null);
@@ -59,6 +70,17 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
       if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!eventToReveal) return;
+
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-event-id]'));
+    const card = cards.find((item) => item.dataset.eventId === eventToReveal && item.closest('.swipe-wrap'));
+    if (!card) return;
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setEventToReveal(null);
+  }, [eventToReveal, visibleEvents]);
 
   const hideEvent = useCallback(
     (event: EventItem) => {
@@ -90,9 +112,29 @@ export function Program({ isFavorite, toggleFavorite, onSelectGrid, onSelectCamp
     [isFavorite, toggleFavorite]
   );
 
+  const revealSharedEvent = () => {
+    if (!sharedEvent) return;
+    setFilters({ ...EMPTY_FILTERS, showPast: true });
+    setEventToReveal(sharedEvent.id);
+    onRevealSharedEvent();
+  };
+
   return (
     <div className="space-y-6">
+      {sharedEvent ? (
+        <div className="glass flex items-center justify-between gap-3 px-3 py-2 text-xs leading-4 text-cream" role="status">
+          <p>The shared event “{sharedEvent.title}” is hidden by your current filters or has already passed.</p>
+          <button
+            type="button"
+            className="min-h-8 shrink-0 rounded-full bg-pink px-3 text-xs font-black text-cream transition-colors duration-200 hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60"
+            onClick={revealSharedEvent}
+          >
+            Show event
+          </button>
+        </div>
+      ) : null}
       <FilterBar filters={filters} setFilters={setFilters} />
+      <TodayStrip events={visibleEvents} isFavorite={isFavorite} />
       <Serendipity
         events={visibleEvents}
         isFavorite={isFavorite}
