@@ -22,9 +22,10 @@ import {
   type Mission,
   type MissionListResult,
   type MissionReward,
-  type MissionWithClaims
+  type MissionWithClaims,
+  type QuestShape
 } from '../lib/missions';
-import { canClaimHere, canDeleteQuestStep } from '../lib/mission-rules';
+import { canClaimHere, canDeleteQuestStep, questLabel } from '../lib/mission-rules';
 import { canonicalCell } from '../lib/geo';
 import { canSpendBandwidth } from '../lib/network';
 import { flushOutbox, getSnapshot as getOutboxSnapshot, subscribe as subscribeOutbox } from '../lib/outbox';
@@ -50,6 +51,7 @@ type MissionsProps = {
 
 type QuestExtension = { questId: string; questStep: number };
 type FormState = 'create' | Mission | QuestExtension | null;
+type BoardRefreshOptions = { questCompletion?: { answerOpened: boolean } };
 
 function isQuestExtension(form: FormState): form is QuestExtension {
   return form !== null && form !== 'create' && !('id' in form);
@@ -152,7 +154,9 @@ function MissionCard({
   isQueuedClaim,
   readOnly,
   busy,
-  waitingFocusToken,
+  focusToken,
+  questShape,
+  questName,
   currentCell,
   claimerNames,
   onSelectGrid,
@@ -174,7 +178,9 @@ function MissionCard({
   isQueuedClaim: boolean;
   readOnly: boolean;
   busy: boolean;
-  waitingFocusToken: number | null;
+  focusToken: number | null;
+  questShape: QuestShape | undefined;
+  questName: string | null;
   currentCell: string | null;
   claimerNames: Record<string, string>;
   onSelectGrid: (grid: string) => void;
@@ -193,8 +199,6 @@ function MissionCard({
   const [reward, setReward] = useState<MissionReward | null>(null);
   const [rewardError, setRewardError] = useState<string | null>(null);
   const [loadingReward, setLoadingReward] = useState(false);
-  const [questShape, setQuestShape] = useState<{ steps: number | null } | null>(null);
-  const [questError, setQuestError] = useState<string | null>(null);
   const unavailableReason = unavailabilityReason(mission);
   const claimNeedsSignal = mission.capacity_type !== 'open' && !canSpendBandwidth();
   const canClaim = !isYours && !mission.myClaim && !isQueuedClaim && !unavailableReason;
@@ -204,29 +208,15 @@ function MissionCard({
   const doneCount = mission.claims.filter((claim) => claim.state === 'done').length;
 
   useEffect(() => {
-    if (waitingFocusToken === null) return;
+    if (focusToken === null) return;
     setExpanded(true);
-  }, [waitingFocusToken]);
+  }, [focusToken]);
 
   const toggleExpanded = () => {
     const nextExpanded = !expanded;
     setExpanded(nextExpanded);
 
     if (!nextExpanded) return;
-
-    // ponytail: the badge's resting text is already correct, so there is nothing to show while
-    // this loads — and keeping the shape means reopening the card does not refetch it.
-    if (mission.quest_id && mission.quest_step === 1 && questShape === null) {
-      setQuestError(null);
-      void getQuestShape(mission.quest_id).then((result) => {
-        if (result.error) {
-          setQuestError(result.error);
-          return;
-        }
-
-        setQuestShape(result.data);
-      });
-    }
 
     if (!mission.reward_kind) return;
 
@@ -268,15 +258,6 @@ function MissionCard({
             ) : null}
             {mission.requires_presence && mission.grid_ref ? <span className="soft-badge">here only · {mission.grid_ref}</span> : null}
             <span className="soft-badge truncate">{capacityLabel(mission)}</span>
-            {mission.quest_step ? (
-              <span className="soft-badge">
-                {mission.quest_step === 1
-                  ? typeof questShape?.steps === 'number'
-                    ? `step 1 of ${questShape.steps}`
-                    : 'this leads somewhere'
-                  : `step ${mission.quest_step}`}
-              </span>
-            ) : null}
             {unavailableReason ? <span className="soft-badge">{unavailabilityLabel(unavailableReason)}</span> : null}
             {isYours && submittedClaims.length ? (
               <span className="soft-badge border border-pink/40 bg-pink/15 text-pink">
@@ -284,6 +265,11 @@ function MissionCard({
               </span>
             ) : null}
           </div>
+          {mission.quest_id && mission.quest_step ? (
+            <p className="mt-1 truncate text-[11px] font-semibold leading-4 text-pink">
+              {questLabel({ step: mission.quest_step, steps: questShape?.steps, questName })}
+            </p>
+          ) : null}
           <button
             type="button"
             className="event-title-button"
@@ -321,7 +307,6 @@ function MissionCard({
       {expanded ? (
         <div className="event-expanded space-y-2">
           {mission.description ? <p className="whitespace-pre-line text-sm leading-6 text-indigo-brand">{mission.description}</p> : null}
-          {questError ? <p className="text-xs font-semibold text-pink">{questError}</p> : null}
           {mission.expires_at ? (
             <p className="text-xs leading-5 text-[var(--muted-indigo)]">
               Expires {new Date(mission.expires_at).toLocaleString()}
@@ -559,6 +544,7 @@ function MissionCard({
 
 export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMission }: MissionsProps) {
   const [missions, setMissions] = useState<MissionWithClaims[]>([]);
+  const [questShapes, setQuestShapes] = useState<Record<string, QuestShape>>({});
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -579,13 +565,16 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
   const { hiddenIds, isHidden, hide, unhide, unhideAll } = useHidden('jomo26:mission-hidden');
   const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
   const [hiddenMissionTarget, setHiddenMissionTarget] = useState<string | null>(null);
-  const [waitingFocus, setWaitingFocus] = useState<{ id: string; token: number } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ id: string; token: number } | null>(null);
   const undoTimer = useRef<number | null>(null);
   const missionHighlightTimer = useRef<number | null>(null);
   const highlightedMission = useRef<HTMLElement | null>(null);
   const handledMissionTargetToken = useRef<number | null>(null);
   const lastVisibilityRefresh = useRef(0);
   const initialization = useRef<Promise<{ id: string | null; board: MissionListResult }> | null>(null);
+  const hasLoadedBoard = useRef(false);
+  const boardMissionIds = useRef<Set<string>>(new Set());
+  const requestedQuestShapes = useRef<Set<string>>(new Set());
   const outbox = useSyncExternalStore(subscribeOutbox, getOutboxSnapshot, getOutboxSnapshot);
   const currentCell = useSyncExternalStore(subscribeCurrentCell, getCurrentCellSnapshot, getCurrentCellSnapshot);
 
@@ -654,7 +643,22 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
   }, []);
 
   const applyBoard = useCallback(
-    (result: MissionListResult) => {
+    (result: MissionListResult, options: BoardRefreshOptions = {}) => {
+      // A step past the first that you didn't create is only readable because YOU unlocked it —
+      // the read policy guarantees that. Without the step/creator filter, anyone publishing a new
+      // quest (step 1 is public instantly) would steal focus on your next refresh.
+      const newlyVisibleQuestStep = hasLoadedBoard.current
+        ? result.data.find(
+            (mission) =>
+              mission.quest_id !== null &&
+              mission.quest_step !== null &&
+              mission.quest_step > 1 &&
+              mission.creator_id !== userId &&
+              !boardMissionIds.current.has(mission.id)
+          ) ?? null
+        : null;
+      boardMissionIds.current = new Set(result.data.map((mission) => mission.id));
+      hasLoadedBoard.current = true;
       setMissions([...result.data].sort((a, b) => b.created_at.localeCompare(a.created_at)));
       setQueuedClaimIds((current) => {
         const stillWaiting = [...current].filter((id) => !result.data.some((mission) => mission.id === id && mission.myClaim));
@@ -664,15 +668,53 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       setBoardError(result.error);
       setLoading(false);
       void loadCreatorNames(result.data);
+
+      if (newlyVisibleQuestStep) {
+        setFilters((current) => ({ ...EMPTY_MISSION_FILTERS, sort: current.sort }));
+        setFocusTarget((current) => ({ id: newlyVisibleQuestStep.id, token: (current?.token ?? 0) + 1 }));
+        setActionNotice(
+          options.questCompletion?.answerOpened
+            ? 'That answer opened the door — the next step is here.'
+            : 'The next step is here.'
+        );
+      } else if (options.questCompletion) {
+        setActionNotice(
+          options.questCompletion.answerOpened
+            ? 'That answer opened the door. The thread ends here — for now.'
+            : 'The thread ends here — for now.'
+        );
+      }
     },
-    [loadCreatorNames]
+    [loadCreatorNames, userId]
   );
 
-  const refreshBoard = useCallback(async () => {
+  const refreshBoard = useCallback(async (options: BoardRefreshOptions = {}) => {
     const result = await listMissions();
-    applyBoard(result);
+    applyBoard(result, options);
     return result;
   }, [applyBoard]);
+
+  useEffect(() => {
+    if (!canSpendBandwidth()) return;
+
+    const questIds = [...new Set(missions.flatMap((mission) => (mission.quest_id ? [mission.quest_id] : [])))];
+    const missingQuestIds = questIds.filter((questId) => !requestedQuestShapes.current.has(questId));
+    if (!missingQuestIds.length) return;
+
+    missingQuestIds.forEach((questId) => requestedQuestShapes.current.add(questId));
+    void Promise.all(missingQuestIds.map(async (questId) => ({ questId, result: await getQuestShape(questId) }))).then((results) => {
+      const fetchedShapes = results.filter((item) => item.result.data !== null);
+      if (!fetchedShapes.length) return;
+
+      setQuestShapes((current) => {
+        const next = { ...current };
+        fetchedShapes.forEach(({ questId, result }) => {
+          next[questId] = result.data!;
+        });
+        return next;
+      });
+    });
+  }, [missions]);
 
   useEffect(() => {
     const refreshWhenVisible = () => {
@@ -865,7 +907,11 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
 
     if (result.data) {
       setMissions((current) => current.map((item) => (item.id === mission.id ? updateClaimOnMission(item, result.data!, userId) : item)));
-      setActionNotice('Mission claimed.');
+      setActionNotice(
+        mission.quest_id && mission.quest_step
+          ? 'You’re on the thread. Finish this to see what’s next.'
+          : 'Mission claimed.'
+      );
     }
   };
 
@@ -900,19 +946,11 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       released_at: action === 'release' ? new Date().toISOString() : claimToChange.released_at
     };
     setMissions((current) => current.map((item) => (item.id === mission.id ? updateClaimOnMission(item, claim, userId) : item)));
+    // Approving is the creator's act: they can already see every step of their own quest, so the
+    // reveal never happens on this device — the taker's board announces it on their next refresh.
+    // Refresh anyway so done-counts and thresholds are current, then say what actually happened.
     if (!result.queued && action === 'approve' && mission.quest_id && mission.quest_step) {
-      const board = await refreshBoard();
-      if (
-        board.data.some(
-          (item) =>
-            item.quest_id === mission.quest_id &&
-            item.quest_step !== null &&
-            item.quest_step > mission.quest_step!
-        )
-      ) {
-        setActionNotice('Something opened up.');
-        return;
-      }
+      await refreshBoard();
     }
     setActionNotice(
       result.queued
@@ -955,21 +993,8 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
     const answerOpened = mission.verification_mode === 'answer' && result.data?.auto_approved === true;
 
     if (!result.queued && (mission.verification_mode === 'none' || result.data?.auto_approved) && mission.quest_id && mission.quest_step) {
-      const board = await refreshBoard();
-      const hasNextStep = board.data.some(
-        (item) =>
-          item.quest_id === mission.quest_id &&
-          item.quest_step !== null &&
-          item.quest_step > mission.quest_step!
-      );
-      if (answerOpened) {
-        setActionNotice(hasNextStep ? 'That answer opened the door — the next step is here.' : 'That answer opened the door — you’re done.');
-        return;
-      }
-      if (hasNextStep) {
-        setActionNotice('Something opened up.');
-        return;
-      }
+      await refreshBoard({ questCompletion: { answerOpened } });
+      return;
     }
 
     setActionNotice(
@@ -1028,6 +1053,15 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
     },
     [currentCell, filters, isMissionFavorite]
   );
+  const questNames = useMemo(() => {
+    const names: Record<string, string> = {};
+
+    missions.forEach((mission) => {
+      if (mission.quest_id && mission.quest_step === 1) names[mission.quest_id] = mission.title;
+    });
+
+    return names;
+  }, [missions]);
   const visibleMissions = useMemo(() => missions.filter((mission) => !isHidden(mission.id)), [isHidden, missions]);
   const takenOnMissions = visibleMissions.filter(
     (mission) =>
@@ -1062,21 +1096,21 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
 
     if (isHidden(mission.id)) unhide(mission.id);
     setFilters((current) => ({ ...EMPTY_MISSION_FILTERS, sort: current.sort }));
-    setWaitingFocus((current) => ({ id: mission.id, token: (current?.token ?? 0) + 1 }));
+    setFocusTarget((current) => ({ id: mission.id, token: (current?.token ?? 0) + 1 }));
   };
 
   useEffect(() => {
-    if (!waitingFocus) return;
+    if (!focusTarget) return;
 
     const frame = window.requestAnimationFrame(() => {
       const card = Array.from(document.querySelectorAll<HTMLElement>('[data-mission-id]')).find(
-        (item) => item.dataset.missionId === waitingFocus.id
+        (item) => item.dataset.missionId === focusTarget.id
       );
       card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [waitingFocus]);
+  }, [focusTarget]);
 
   useEffect(() => {
     if (!selectedMission || loading || isHidden(selectedMission.id)) return;
@@ -1124,7 +1158,9 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
         isQueuedClaim={queuedClaimIds.has(mission.id)}
         readOnly={readOnly}
         busy={busyMissionId === mission.id}
-        waitingFocusToken={waitingFocus?.id === mission.id ? waitingFocus.token : null}
+        focusToken={focusTarget?.id === mission.id ? focusTarget.token : null}
+        questShape={mission.quest_id ? questShapes[mission.quest_id] : undefined}
+        questName={mission.quest_id ? questNames[mission.quest_id] ?? null : null}
         currentCell={currentCell}
         claimerNames={creatorNames}
         onSelectGrid={onSelectGrid}

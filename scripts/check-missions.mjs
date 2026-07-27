@@ -1,7 +1,7 @@
 // Self-check for src/lib/mission-rules.ts.
 // Run: node --experimental-strip-types scripts/check-missions.mjs
 import assert from 'node:assert';
-import { canClaimHere, canDeleteQuestStep, normalizeCreateInput, normalizeUpdateInput } from '../src/lib/mission-rules.ts';
+import { canClaimHere, canDeleteQuestStep, normalizeCreateInput, normalizeUpdateInput, questLabel } from '../src/lib/mission-rules.ts';
 
 const canonicalize = (code) => {
   const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
@@ -123,6 +123,12 @@ assert.equal(
   true
 );
 assert.equal(canDeleteQuestStep({ quest_id: null, quest_step: null }, []), true);
+
+assert.equal(questLabel({ step: 1, steps: 4, questName: 'The long way round' }), 'a quest · 4 steps');
+assert.equal(questLabel({ step: 1, steps: null, questName: 'The long way round' }), 'a quest · this leads somewhere');
+assert.equal(questLabel({ step: 2, steps: 4, questName: 'The long way round' }), 'The long way round · step 2 of 4');
+assert.equal(questLabel({ step: 2, steps: null, questName: 'The long way round' }), 'The long way round · step 2');
+assert.equal(questLabel({ step: 2, steps: undefined, questName: null }), 'a quest · step 2');
 
 assert.equal(canClaimHere({ requires_presence: true, grid_ref: 'B03' }, 'b3', canonicalize), true);
 assert.equal(canClaimHere({ requires_presence: true, grid_ref: 'B3' }, 'B4', canonicalize), false);

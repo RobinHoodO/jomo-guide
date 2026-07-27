@@ -414,3 +414,24 @@ export function canDeleteQuestStep(
       candidate.quest_step > mission.quest_step!
   );
 }
+
+export function questLabel({
+  step,
+  steps,
+  questName
+}: {
+  step: number;
+  steps: number | null | undefined;
+  questName: string | null | undefined;
+}): string {
+  if (step === 1) {
+    return typeof steps === 'number'
+      ? `a quest · ${steps} step${steps === 1 ? '' : 's'}`
+      : 'a quest · this leads somewhere';
+  }
+
+  const name = questName?.trim() || 'a quest';
+  return typeof steps === 'number'
+    ? `${name} · step ${step} of ${steps}`
+    : `${name} · step ${step}`;
+}
