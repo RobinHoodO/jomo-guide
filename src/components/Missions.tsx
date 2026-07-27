@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from 'react';
+import { MissionFilterBar, type MissionFilters } from './MissionFilterBar';
 import { MissionForm } from './MissionForm';
+import { SwipeableCard } from './SwipeableCard';
+import { useFavorites } from '../hooks/useFavorites';
+import { useHidden } from '../hooks/useHidden';
+import { parseGridCode } from '../lib/events';
 import {
   approveClaim,
   claimMission,
   createMission,
   deleteMission,
+  getMissionReward,
   listMissions,
   markClaimDone,
   rejectClaim,
@@ -15,6 +21,7 @@ import {
   type CreateMissionInput,
   type Mission,
   type MissionListResult,
+  type MissionReward,
   type MissionWithClaims
 } from '../lib/missions';
 import { canClaimHere } from '../lib/mission-rules';
@@ -22,13 +29,23 @@ import { canonicalCell } from '../lib/geo';
 import { canSpendBandwidth } from '../lib/network';
 import { flushOutbox, getSnapshot as getOutboxSnapshot, subscribe as subscribeOutbox } from '../lib/outbox';
 import { ensureSignedIn, getSupabase } from '../lib/supabase';
-import { CELL_SOURCE, getCurrentCellSnapshot, subscribeCurrentCell } from '../lib/whereami';
+import { CELL_SOURCE, getCurrentCell, getCurrentCellSnapshot, subscribeCurrentCell } from '../lib/whereami';
 
 const ANONYMOUS_BURNER = 'Anonymous burner';
+const EMPTY_MISSION_FILTERS: MissionFilters = {
+  query: '',
+  capacityTypes: [],
+  hereOnly: false,
+  needsApproval: false,
+  hasPrize: false,
+  starred: false,
+  sort: 'newest'
+};
 
 type MissionsProps = {
   onSelectGrid: (grid: string) => void;
   onSelectCamp: (campId: string) => void;
+  selectedMission: { id: string; token: number } | null;
 };
 
 type FormState = 'create' | Mission | null;
@@ -51,12 +68,22 @@ function isActiveClaim(claim: Claim) {
   return claim.state !== 'released';
 }
 
-function isUnavailable(mission: MissionWithClaims) {
-  if (mission.is_closed || isExpired(mission) || mission.myClaim?.state === 'done') return true;
+function unavailabilityReason(mission: MissionWithClaims): null | 'closed' | 'expired' | 'done' | 'full' {
+  if (mission.is_closed) return 'closed';
+  if (isExpired(mission)) return 'expired';
+  if (mission.myClaim?.state === 'done') return 'done';
   const activeClaimCount = mission.claims.filter(isActiveClaim).length;
-  if (mission.capacity_type === 'limited') return activeClaimCount >= (mission.capacity ?? 0);
-  if (mission.capacity_type === 'exclusive') return activeClaimCount > 0;
-  return false;
+  if (mission.capacity_type === 'limited' && activeClaimCount >= (mission.capacity ?? 0)) return 'full';
+  if (mission.capacity_type === 'exclusive' && activeClaimCount > 0) return 'full';
+  return null;
+}
+
+function isUnavailable(mission: MissionWithClaims) {
+  return unavailabilityReason(mission) !== null;
+}
+
+function unavailabilityLabel(reason: Exclude<ReturnType<typeof unavailabilityReason>, null>) {
+  return reason === 'done' ? 'you finished this' : reason;
 }
 
 function updateClaimOnMission(mission: MissionWithClaims, claim: Claim, userId: string | null): MissionWithClaims {
@@ -84,13 +111,33 @@ function missionPatch(input: CreateMissionInput): Partial<Mission> {
     grid_ref: input.grid_ref ?? null,
     requires_presence: input.requires_presence ?? false,
     requires_verification: input.requires_verification ?? false,
-    expires_at: input.expires_at ?? null
+    expires_at: input.expires_at ?? null,
+    reward_kind: input.reward_kind ?? null,
+    reward_threshold: input.reward_threshold ?? null
   };
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3.25 14.75 8.82l6.15.9-4.45 4.34 1.05 6.12L12 17.29l-5.5 2.89 1.05-6.12L3.1 9.72l6.15-.9L12 3.25Z" />
+    </svg>
+  );
 }
 
 function MissionCard({
   mission,
   creatorName,
+  isFavorite,
   isYours,
   isTakenOn,
   isQueuedClaim,
@@ -99,6 +146,7 @@ function MissionCard({
   currentCell,
   claimerNames,
   onSelectGrid,
+  onToggleFavorite,
   onEdit,
   onClaim,
   onDone,
@@ -109,6 +157,7 @@ function MissionCard({
 }: {
   mission: MissionWithClaims;
   creatorName: string;
+  isFavorite: boolean;
   isYours: boolean;
   isTakenOn: boolean;
   isQueuedClaim: boolean;
@@ -117,6 +166,7 @@ function MissionCard({
   currentCell: string | null;
   claimerNames: Record<string, string>;
   onSelectGrid: (grid: string) => void;
+  onToggleFavorite: () => void;
   onEdit: () => void;
   onClaim: () => void;
   onDone: (claim: Claim) => void;
@@ -126,18 +176,44 @@ function MissionCard({
   onReject: (claim: Claim) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [reward, setReward] = useState<MissionReward | null>(null);
+  const [rewardError, setRewardError] = useState<string | null>(null);
+  const [loadingReward, setLoadingReward] = useState(false);
+  const unavailableReason = unavailabilityReason(mission);
   const claimNeedsSignal = mission.capacity_type !== 'open' && !canSpendBandwidth();
-  const canClaim = !isYours && !mission.myClaim && !isQueuedClaim && !isUnavailable(mission);
+  const canClaim = !isYours && !mission.myClaim && !isQueuedClaim && !unavailableReason;
   // Presence is a client-side game rule, not server enforcement.
   const claimHere = canClaimHere(mission, currentCell, canonicalCell);
   const submittedClaims = mission.claims.filter((claim) => claim.state === 'submitted');
+  const doneCount = mission.claims.filter((claim) => claim.state === 'done').length;
+
+  const toggleExpanded = () => {
+    const nextExpanded = !expanded;
+    setExpanded(nextExpanded);
+
+    if (!nextExpanded || !mission.reward_kind) return;
+
+    setLoadingReward(true);
+    setRewardError(null);
+    setReward(null);
+    void getMissionReward(mission.id).then((result) => {
+      setLoadingReward(false);
+      if (result.error) {
+        setRewardError(result.error);
+        return;
+      }
+
+      setReward(result.data);
+    });
+  };
 
   return (
     <article
+      data-mission-id={mission.id}
       className={`event-card ${expanded ? 'is-expanded' : 'is-collapsed'}`}
       style={{ '--category-color': isTakenOn ? 'var(--yellow)' : 'var(--pink)' } as CSSProperties}
     >
-      <div className="flex cursor-pointer items-start gap-2.5" onClick={() => setExpanded((value) => !value)}>
+      <div className="flex cursor-pointer items-start gap-2.5" onClick={toggleExpanded}>
         <div className="min-w-0 flex-1">
           <div className="event-meta-row">
             {mission.grid_ref ? (
@@ -155,22 +231,40 @@ function MissionCard({
             ) : null}
             {mission.requires_presence && mission.grid_ref ? <span className="soft-badge">here only · {mission.grid_ref}</span> : null}
             <span className="soft-badge truncate">{capacityLabel(mission)}</span>
+            {unavailableReason ? <span className="soft-badge">{unavailabilityLabel(unavailableReason)}</span> : null}
           </div>
           <button
             type="button"
             className="event-title-button"
             onClick={(event) => {
               event.stopPropagation();
-              setExpanded((value) => !value);
+              toggleExpanded();
             }}
             aria-expanded={expanded}
             title="Open / close"
           >
-            <h3 className="truncate text-sm font-semibold leading-5 text-indigo-brand">{mission.title}</h3>
+            <h3 className="text-sm font-semibold leading-5 text-indigo-brand">{mission.title}</h3>
           </button>
+          {mission.reward_kind && mission.reward_threshold ? (
+            <p className="mt-1"><span className="soft-badge">unlocks at {mission.reward_threshold} · {doneCount} so far</span></p>
+          ) : null}
           <p className="mt-1 text-xs leading-4 text-[var(--muted-indigo)]">Posted by {creatorName}</p>
         </div>
-        {isYours ? <span className="soft-badge shrink-0">yours</span> : null}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {isYours ? <span className="soft-badge shrink-0">yours</span> : null}
+          <button
+            type="button"
+            className={`icon-button ${isFavorite ? 'is-active' : ''}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleFavorite();
+            }}
+            aria-label={isFavorite ? 'Remove star from mission' : 'Star mission'}
+            title={isFavorite ? 'Let this one go' : 'Keep this one'}
+          >
+            <StarIcon filled={isFavorite} />
+          </button>
+        </div>
       </div>
 
       {expanded ? (
@@ -180,6 +274,53 @@ function MissionCard({
             <p className="text-xs leading-5 text-[var(--muted-indigo)]">
               Expires {new Date(mission.expires_at).toLocaleString()}
             </p>
+          ) : null}
+          {mission.reward_kind ? (
+            <div className="space-y-2">
+              {loadingReward ? <p className="text-xs font-semibold text-[var(--muted-indigo)]">Opening the channel…</p> : null}
+              {rewardError ? <p className="text-xs font-semibold text-pink">{rewardError}</p> : null}
+              {reward ? (
+                isYours ? (
+                  <section className="glass space-y-2 p-3 text-cream">
+                    <p className="section-kicker text-yellow">What people who finish will see</p>
+                    {reward.body ? <p className="whitespace-pre-line text-sm leading-6">{reward.body}</p> : null}
+                    {reward.kind === 'roster' ? <p className="text-sm leading-6">The finishers will become visible to one another.</p> : null}
+                    {reward.closer_body ? (
+                      <div className="border-t border-cream/25 pt-2">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow">For the closer</p>
+                        <p className="mt-1 whitespace-pre-line text-sm leading-6">{reward.closer_body}</p>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : !reward.has_reward || !reward.unlocked ? null : !reward.you_did_it ? (
+                  <p className="text-sm font-semibold leading-6 text-[var(--muted-indigo)]">
+                    It opened for the people who finished it.
+                  </p>
+                ) : (
+                  <section className="glass space-y-3 p-3 text-cream">
+                    <div>
+                      <p className="section-kicker text-yellow">The channel opened</p>
+                      <p className="display-heading mt-0.5 text-base text-cream">You made it through.</p>
+                    </div>
+                    {reward.body ? <p className="whitespace-pre-line text-sm leading-6">{reward.body}</p> : null}
+                    {reward.roster.length ? (
+                      <div className="border-t border-cream/25 pt-2">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow">Who finished</p>
+                        <ol className="mt-1 space-y-1 text-sm leading-5">
+                          {reward.roster.map((name, index) => <li key={`${name}-${index}`}>{name}</li>)}
+                        </ol>
+                      </div>
+                    ) : null}
+                    {reward.you_closed_it && reward.closer_body ? (
+                      <div className="border-t border-cream/25 pt-2">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow">For the closer</p>
+                        <p className="mt-1 whitespace-pre-line text-sm leading-6">{reward.closer_body}</p>
+                      </div>
+                    ) : null}
+                  </section>
+                )
+              ) : null}
+            </div>
           ) : null}
           {isQueuedClaim ? <p className="text-xs font-semibold text-pink">Your open-mission claim is waiting for signal.</p> : null}
           {isTakenOn && mission.myClaim?.state === 'claimed' ? (
@@ -302,7 +443,7 @@ function MissionCard({
   );
 }
 
-export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: MissionsProps) {
+export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMission }: MissionsProps) {
   const [missions, setMissions] = useState<MissionWithClaims[]>([]);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [userId, setUserId] = useState<string | null>(null);
@@ -314,13 +455,71 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [busyMissionId, setBusyMissionId] = useState<string | null>(null);
   const [queuedClaimIds, setQueuedClaimIds] = useState<Set<string>>(() => new Set());
-  const [displayName, setDisplayName] = useState(ANONYMOUS_BURNER);
-  const [displayNameDraft, setDisplayNameDraft] = useState(ANONYMOUS_BURNER);
+  const [displayName, setDisplayName] = useState('');
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [filters, setFilters] = useState<MissionFilters>(EMPTY_MISSION_FILTERS);
+  const { isFavorite: isMissionFavorite, toggleFavorite: toggleMissionFavorite } = useFavorites('jomo26:mission-favorites');
+  const { hiddenIds, isHidden, hide, unhide, unhideAll } = useHidden('jomo26:mission-hidden');
+  const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
+  const [hiddenMissionTarget, setHiddenMissionTarget] = useState<string | null>(null);
+  const undoTimer = useRef<number | null>(null);
+  const missionHighlightTimer = useRef<number | null>(null);
+  const highlightedMission = useRef<HTMLElement | null>(null);
+  const handledMissionTargetToken = useRef<number | null>(null);
   const initialization = useRef<Promise<{ id: string | null; board: MissionListResult }> | null>(null);
   const outbox = useSyncExternalStore(subscribeOutbox, getOutboxSnapshot, getOutboxSnapshot);
   const currentCell = useSyncExternalStore(subscribeCurrentCell, getCurrentCellSnapshot, getCurrentCellSnapshot);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+      if (missionHighlightTimer.current !== null) window.clearTimeout(missionHighlightTimer.current);
+      highlightedMission.current?.classList.remove('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+    };
+  }, []);
+
+  const hideMission = useCallback(
+    (mission: MissionWithClaims) => {
+      hide(mission.id);
+      if (undoTimer.current !== null) window.clearTimeout(undoTimer.current);
+      setUndoHide({ id: mission.id, title: mission.title });
+      undoTimer.current = window.setTimeout(() => {
+        setUndoHide(null);
+        undoTimer.current = null;
+      }, 5000);
+    },
+    [hide]
+  );
+
+  const undoLastHide = () => {
+    if (!undoHide) return;
+    unhide(undoHide.id);
+    setUndoHide(null);
+    if (undoTimer.current !== null) {
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+  };
+
+  const favoriteBySwipe = useCallback(
+    (mission: MissionWithClaims) => {
+      if (!isMissionFavorite(mission.id)) toggleMissionFavorite(mission.id);
+    },
+    [isMissionFavorite, toggleMissionFavorite]
+  );
+
+  useEffect(() => {
+    if (!selectedMission) {
+      setHiddenMissionTarget(null);
+      return;
+    }
+
+    setFilters((current) => ({ ...EMPTY_MISSION_FILTERS, sort: current.sort }));
+    setHiddenMissionTarget(isHidden(selectedMission.id) ? selectedMission.id : null);
+  }, [isHidden, selectedMission?.id, selectedMission?.token]);
 
   const loadCreatorNames = useCallback(async (items: MissionWithClaims[]) => {
     if (!canSpendBandwidth()) return;
@@ -359,6 +558,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
   }, [applyBoard]);
 
   const loadProfile = useCallback(async (id: string) => {
+    setProfileLoaded(false);
     if (!canSpendBandwidth()) return;
 
     const supabase = getSupabase();
@@ -367,10 +567,13 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
     const { data, error } = await supabase.from('profiles').select('display_name').eq('id', id).maybeSingle();
     if (error) return;
 
-    const name = data?.display_name?.trim() || ANONYMOUS_BURNER;
+    const name = data?.display_name?.trim();
+    if (!name) return;
+
     setDisplayName(name);
     setDisplayNameDraft(name);
     setCreatorNames((current) => ({ ...current, [id]: name }));
+    setProfileLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -408,17 +611,26 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
     const syncWhenPossible = () => {
       if (!canSpendBandwidth()) return;
       void flushOutbox().then(() => refreshBoard());
+      if (userId) void loadProfile(userId);
     };
 
     window.addEventListener('online', syncWhenPossible);
     if (canSpendBandwidth() && outbox.pendingCount > 0) syncWhenPossible();
 
     return () => window.removeEventListener('online', syncWhenPossible);
-  }, [outbox.pendingCount, refreshBoard]);
+  }, [loadProfile, outbox.pendingCount, refreshBoard, userId]);
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const name = displayNameDraft.trim() || ANONYMOUS_BURNER;
+    if (!profileLoaded) {
+      setProfileError('Your mission name is still loading.');
+      return;
+    }
+    const name = displayNameDraft.trim();
+    if (!name) {
+      setProfileError('Your mission name can’t be empty.');
+      return;
+    }
 
     if (!userId || !canSpendBandwidth()) {
       setProfileError('You need signal to save your name.');
@@ -448,8 +660,6 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
   const saveMission = async (input: CreateMissionInput) => {
     if (form === 'create') {
       const result = await createMission(input);
-      if (result.error) return result.error;
-
       if (result.data) {
         setMissions((current) => [
           {
@@ -461,7 +671,15 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
           },
           ...current
         ]);
-        if (userId) setCreatorNames((current) => ({ ...current, [userId]: displayName }));
+        if (userId && displayName) setCreatorNames((current) => ({ ...current, [userId]: displayName }));
+      }
+
+      if (result.error) {
+        if (result.data) {
+          setActionNotice(result.error);
+          return null;
+        }
+        return result.error;
       }
 
       setActionNotice(result.queued ? 'Mission saved here and waiting for signal.' : 'Mission created.');
@@ -564,46 +782,129 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
     );
   };
 
-  const sorted = useMemo(
-    () => [...missions].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-    [missions]
+  const filterAndSortMissions = useCallback(
+    (items: MissionWithClaims[]) => {
+      const query = filters.query.trim().toLowerCase();
+      const currentGrid = parseGridCode(getCurrentCell() ?? '');
+      const newestFirst = (a: MissionWithClaims, b: MissionWithClaims) => b.created_at.localeCompare(a.created_at);
+
+      return items
+        .filter((mission) => {
+          if (filters.capacityTypes.length && !filters.capacityTypes.includes(mission.capacity_type)) return false;
+          if (filters.hereOnly && !mission.requires_presence) return false;
+          if (filters.needsApproval && !mission.requires_verification) return false;
+          if (filters.hasPrize && !mission.reward_kind) return false;
+          if (filters.starred && !isMissionFavorite(mission.id)) return false;
+          if (!query) return true;
+          return `${mission.title} ${mission.description}`.toLowerCase().includes(query);
+        })
+        .sort((a, b) => {
+          if (filters.sort === 'oldest') return a.created_at.localeCompare(b.created_at);
+          if (filters.sort === 'closest' && currentGrid) {
+            const gridA = parseGridCode(a.grid_ref ?? '');
+            const gridB = parseGridCode(b.grid_ref ?? '');
+            if (gridA && gridB) {
+              const distanceA = Math.max(Math.abs(gridA.columnIndex - currentGrid.columnIndex), Math.abs(gridA.row - currentGrid.row));
+              const distanceB = Math.max(Math.abs(gridB.columnIndex - currentGrid.columnIndex), Math.abs(gridB.row - currentGrid.row));
+              return distanceA - distanceB || newestFirst(a, b);
+            }
+            if (gridA) return -1;
+            if (gridB) return 1;
+          }
+          if (filters.sort === 'expiring') {
+            const expiresA = a.expires_at ? new Date(a.expires_at).getTime() : Number.NaN;
+            const expiresB = b.expires_at ? new Date(b.expires_at).getTime() : Number.NaN;
+            const hasExpiryA = Number.isFinite(expiresA);
+            const hasExpiryB = Number.isFinite(expiresB);
+            if (hasExpiryA && hasExpiryB) return expiresA - expiresB || newestFirst(a, b);
+            if (hasExpiryA) return -1;
+            if (hasExpiryB) return 1;
+          }
+          return newestFirst(a, b);
+        });
+    },
+    [currentCell, filters, isMissionFavorite]
   );
-  const yours = sorted.filter((mission) => mission.creator_id === userId);
-  const takenOn = sorted.filter(
+  const visibleMissions = useMemo(() => missions.filter((mission) => !isHidden(mission.id)), [isHidden, missions]);
+  const takenOnMissions = visibleMissions.filter(
     (mission) =>
       mission.creator_id !== userId &&
       (mission.myClaim?.state === 'claimed' || mission.myClaim?.state === 'submitted' || queuedClaimIds.has(mission.id))
   );
-  const open = sorted.filter(
-    (mission) => mission.creator_id !== userId && !takenOn.includes(mission) && !isUnavailable(mission)
+  const yours = filterAndSortMissions(visibleMissions.filter((mission) => mission.creator_id === userId));
+  const takenOn = filterAndSortMissions(takenOnMissions);
+  const open = filterAndSortMissions(
+    visibleMissions.filter(
+      (mission) => mission.creator_id !== userId && !takenOnMissions.includes(mission) && !isUnavailable(mission)
+    )
   );
-  const taken = sorted.filter(
-    (mission) => mission.creator_id !== userId && !takenOn.includes(mission) && isUnavailable(mission)
+  const taken = filterAndSortMissions(
+    visibleMissions.filter(
+      (mission) => mission.creator_id !== userId && !takenOnMissions.includes(mission) && isUnavailable(mission)
+    )
   );
   const readOnly = !userId;
   const hasMissions = missions.length > 0;
 
+  useEffect(() => {
+    if (!selectedMission || loading || isHidden(selectedMission.id)) return;
+    if (handledMissionTargetToken.current === selectedMission.token) return;
+    if (!missions.some((mission) => mission.id === selectedMission.id)) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (taken.some((mission) => mission.id === selectedMission.id)) {
+        document.querySelector<HTMLDetailsElement>('[data-taken-missions]')?.setAttribute('open', '');
+      }
+
+      const card = Array.from(document.querySelectorAll<HTMLElement>('[data-mission-id]')).find(
+        (item) => item.dataset.missionId === selectedMission.id
+      );
+      if (!card) return;
+
+      handledMissionTargetToken.current = selectedMission.token;
+      if (missionHighlightTimer.current !== null) window.clearTimeout(missionHighlightTimer.current);
+      highlightedMission.current?.classList.remove('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+      highlightedMission.current = card;
+      missionHighlightTimer.current = window.setTimeout(() => {
+        card.classList.remove('ring-2', 'ring-pink', 'ring-offset-2', 'ring-offset-navy');
+        missionHighlightTimer.current = null;
+        highlightedMission.current = null;
+      }, 2000);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isHidden, loading, missions, selectedMission, taken]);
+
   const renderMission = (mission: MissionWithClaims, section: 'yours' | 'takenOn' | 'open' | 'taken') => (
-    <MissionCard
+    <SwipeableCard
       key={mission.id}
-      mission={mission}
-      creatorName={creatorNames[mission.creator_id] ?? ANONYMOUS_BURNER}
-      isYours={section === 'yours'}
-      isTakenOn={section === 'takenOn'}
-      isQueuedClaim={queuedClaimIds.has(mission.id)}
-      readOnly={readOnly}
-      busy={busyMissionId === mission.id}
-      currentCell={currentCell}
-      claimerNames={creatorNames}
-      onSelectGrid={onSelectGrid}
-      onEdit={() => setForm(mission)}
-      onClaim={() => void claim(mission)}
-      onDone={(claimToChange) => void changeClaim(mission, claimToChange, 'done')}
-      onSubmit={(claimToChange) => void changeClaim(mission, claimToChange, 'submit')}
-      onRelease={(claimToChange) => void changeClaim(mission, claimToChange, 'release')}
-      onApprove={(claimToChange) => void changeClaim(mission, claimToChange, 'approve')}
-      onReject={(claimToChange) => void changeClaim(mission, claimToChange, 'reject')}
-    />
+      onHide={() => hideMission(mission)}
+      onSwipeFavorite={() => favoriteBySwipe(mission)}
+    >
+      <MissionCard
+        mission={mission}
+        creatorName={creatorNames[mission.creator_id] ?? ANONYMOUS_BURNER}
+        isFavorite={isMissionFavorite(mission.id)}
+        isYours={section === 'yours'}
+        isTakenOn={section === 'takenOn'}
+        isQueuedClaim={queuedClaimIds.has(mission.id)}
+        readOnly={readOnly}
+        busy={busyMissionId === mission.id}
+        currentCell={currentCell}
+        claimerNames={creatorNames}
+        onSelectGrid={onSelectGrid}
+        onToggleFavorite={() => toggleMissionFavorite(mission.id)}
+        onEdit={() => setForm(mission)}
+        onClaim={() => void claim(mission)}
+        onDone={(claimToChange) => void changeClaim(mission, claimToChange, 'done')}
+        onSubmit={(claimToChange) => void changeClaim(mission, claimToChange, 'submit')}
+        onRelease={(claimToChange) => void changeClaim(mission, claimToChange, 'release')}
+        onApprove={(claimToChange) => void changeClaim(mission, claimToChange, 'approve')}
+        onReject={(claimToChange) => void changeClaim(mission, claimToChange, 'reject')}
+      />
+    </SwipeableCard>
   );
 
   return (
@@ -613,6 +914,26 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
         <h2 className="display-heading text-lg">Small invitations, real people</h2>
         <p className="text-sm leading-5 text-cream">Offer a tiny adventure, take one on, and let it be enough.</p>
       </section>
+
+      {hiddenMissionTarget ? (
+        <div className="glass flex items-center justify-between gap-3 px-3 py-2 text-xs leading-4 text-cream" role="status">
+          <p>That mission is hidden.</p>
+          <button
+            type="button"
+            className="min-h-8 shrink-0 rounded-full bg-pink px-3 text-xs font-black text-cream transition-colors duration-200 hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60"
+            onClick={() => unhide(hiddenMissionTarget)}
+          >
+            Restore mission
+          </button>
+        </div>
+      ) : null}
+
+      <MissionFilterBar
+        filters={filters}
+        setFilters={setFilters}
+        hiddenCount={hiddenIds.length}
+        onRestoreHidden={unhideAll}
+      />
 
       <section className="glass filter-glass space-y-2 p-3">
         <form className="flex flex-wrap items-end gap-2" onSubmit={saveProfile}>
@@ -626,13 +947,14 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
                 setDisplayNameDraft(event.target.value);
                 setProfileError(null);
               }}
-              disabled={readOnly}
+              disabled={readOnly || !profileLoaded}
+              placeholder={profileLoaded ? undefined : 'Loading your mission name…'}
             />
           </label>
           <button
             type="submit"
             className="min-h-10 rounded-full bg-cream px-4 text-xs font-black text-indigo-brand transition-colors hover:bg-yellow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60 disabled:opacity-50"
-            disabled={readOnly || savingProfile}
+            disabled={readOnly || !profileLoaded || savingProfile}
           >
             {savingProfile ? 'Saving…' : 'Save name'}
           </button>
@@ -669,7 +991,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
         </button>
       ) : null}
 
-      {loading ? <p className="px-1 text-sm text-cream">Loading the board…</p> : null}
+      {loading ? <p className="mission-loading px-1 text-sm text-cream">Loading the board…</p> : null}
 
       {!loading && !hasMissions ? (
         <section className="panel-card space-y-3">
@@ -709,12 +1031,21 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
       ) : null}
 
       {taken.length ? (
-        <details className="glass filter-glass p-3">
+        <details className="glass filter-glass p-3" data-taken-missions>
           <summary className="min-h-10 cursor-pointer list-none py-2 text-sm font-black text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35">
             Taken ({taken.length})
           </summary>
           <div className="space-y-2 pt-2">{taken.map((mission) => renderMission(mission, 'taken'))}</div>
         </details>
+      ) : null}
+
+      {undoHide ? (
+        <div className="toast snackbar" role="status" aria-live="polite">
+          <span>Hidden. Enjoy missing out 🙈</span>
+          <button type="button" className="snackbar-undo" onClick={undoLastHide}>
+            Undo
+          </button>
+        </div>
       ) : null}
     </div>
   );

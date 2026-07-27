@@ -26,6 +26,7 @@ import { flushUsage, recordOpen } from './lib/usage';
 
 type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info' | 'missions';
 type CampSelection = { id: string; token: number };
+type MissionSelection = { id: string; token: number };
 type SharedEvent = { id: string; title: string };
 
 function TabIcon({ name }: { name: Tab }) {
@@ -59,6 +60,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('program');
   const [selectedGrid, setSelectedGrid] = useState<string | null>(null);
   const [selectedCamp, setSelectedCamp] = useState<CampSelection | null>(null);
+  const [selectedMission, setSelectedMission] = useState<MissionSelection | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [plainBg, setPlainBg] = useState(false);
   const [sharedEvent, setSharedEvent] = useState<SharedEvent | null>(null);
@@ -158,6 +160,11 @@ export default function App() {
   const selectCamp = (campId: string) => {
     setSelectedCamp((current) => ({ id: campId, token: (current?.token ?? 0) + 1 }));
     setTab('camps');
+  };
+
+  const selectMission = (missionId: string) => {
+    setSelectedMission((current) => ({ id: missionId, token: (current?.token ?? 0) + 1 }));
+    setTab('missions');
   };
 
   const showScheduleToast = () => {
@@ -267,14 +274,6 @@ export default function App() {
                 <TabIcon name="camps" />
                 <span>Camps</span>
               </button>
-              <button
-                type="button"
-                className={tab === 'info' ? 'is-active' : ''}
-                onClick={() => setTab('info')}
-              >
-                <TabIcon name="info" />
-                <span>Info</span>
-              </button>
               {unlocked ? (
                 <button
                   type="button"
@@ -285,6 +284,14 @@ export default function App() {
                   <span>Missions</span>
                 </button>
               ) : null}
+              <button
+                type="button"
+                className={tab === 'info' ? 'is-active' : ''}
+                onClick={() => setTab('info')}
+              >
+                <TabIcon name="info" />
+                <span>Info</span>
+              </button>
             </nav>
           </header>
 
@@ -318,6 +325,7 @@ export default function App() {
               toggleFavorite={handleToggleFavorite}
               onUnlock={handleUnlock}
               onOpenMissions={() => setTab('missions')}
+              onOpenMission={selectMission}
             />
           ) : null}
 
@@ -333,7 +341,9 @@ export default function App() {
 
           {tab === 'info' ? <InfoTab /> : null}
 
-          {tab === 'missions' ? <Missions onSelectGrid={selectGrid} onSelectCamp={selectCamp} /> : null}
+          {tab === 'missions' ? (
+            <Missions onSelectGrid={selectGrid} onSelectCamp={selectCamp} selectedMission={selectedMission} />
+          ) : null}
 
           <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
             Unofficial companion, made by a burner. Works offline after first load; your stars stay on this phone.{' '}

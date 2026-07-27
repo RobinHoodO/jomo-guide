@@ -38,7 +38,11 @@ body {
 
 .ambient-blobs {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100vh;
+  height: 100lvh;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -52,7 +56,7 @@ body {
   display: block;
   width: 42vw;
   min-width: 19rem;
-  height: 34vh;
+  height: 34%;
   min-height: 18rem;
   border-radius: 58% 42% 61% 39% / 45% 55% 42% 58%;
   opacity: 0.96;
@@ -62,18 +66,18 @@ body {
 
 .ambient-blob-1 {
   left: -18vw;
-  top: -7vh;
+  top: -7%;
   width: 56vw;
-  height: 40vh;
+  height: 40%;
   background: #F5A8C7;
   animation: drift-blob-a 84s ease-in-out infinite alternate;
 }
 
 .ambient-blob-2 {
   right: -16vw;
-  top: -3vh;
+  top: -3%;
   width: 58vw;
-  height: 42vh;
+  height: 42%;
   border-radius: 43% 57% 38% 62% / 52% 41% 59% 48%;
   background: #7FA8E0;
   animation: drift-blob-b 102s ease-in-out -18s infinite alternate;
@@ -81,9 +85,9 @@ body {
 
 .ambient-blob-3 {
   left: -12vw;
-  top: 25vh;
+  top: 25%;
   width: 52vw;
-  height: 44vh;
+  height: 44%;
   border-radius: 47% 53% 62% 38% / 56% 44% 53% 47%;
   background: #63C2B8;
   opacity: 0.98;
@@ -92,9 +96,9 @@ body {
 
 .ambient-blob-4 {
   right: -18vw;
-  top: 23vh;
+  top: 23%;
   width: 62vw;
-  height: 46vh;
+  height: 46%;
   border-radius: 61% 39% 44% 56% / 43% 58% 42% 57%;
   background: #F7D154;
   opacity: 0.95;
@@ -103,9 +107,9 @@ body {
 
 .ambient-blob-5 {
   left: 18vw;
-  top: 45vh;
+  top: 45%;
   width: 60vw;
-  height: 45vh;
+  height: 45%;
   border-radius: 55% 45% 36% 64% / 49% 37% 63% 51%;
   background: #F2A47E;
   opacity: 0.97;
@@ -114,9 +118,9 @@ body {
 
 .ambient-blob-6 {
   left: -14vw;
-  bottom: -16vh;
+  bottom: -16%;
   width: 55vw;
-  height: 41vh;
+  height: 41%;
   border-radius: 38% 62% 57% 43% / 61% 39% 48% 52%;
   background: #B389D9;
   opacity: 0.96;
@@ -125,9 +129,9 @@ body {
 
 .ambient-blob-7 {
   right: -10vw;
-  bottom: -15vh;
+  bottom: -15%;
   width: 57vw;
-  height: 43vh;
+  height: 43%;
   border-radius: 64% 36% 54% 46% / 46% 61% 39% 54%;
   background: #F5A8C7;
   opacity: 0.94;
@@ -136,9 +140,9 @@ body {
 
 .ambient-blob-8 {
   left: 31vw;
-  top: 12vh;
+  top: 12%;
   width: 39vw;
-  height: 34vh;
+  height: 34%;
   border-radius: 45% 55% 50% 50% / 38% 56% 44% 62%;
   background: #B389D9;
   opacity: 0.9;
@@ -180,6 +184,10 @@ body {
 .filter-glass {
   border-radius: 1.35rem 1rem 1.45rem 1.1rem;
   box-shadow: 0 5px 18px rgba(7, 10, 30, 0.18);
+}
+
+.mission-loading {
+  min-height: 18rem;
 }
 
 button,
@@ -1088,12 +1096,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 47% 53% 38% 62% / 59% 41% 57% 43%;
-    transform: translate3d(6vw, 5vh, 0) rotate(10deg) scale(1.05);
+    transform: translate3d(6vw, 12.5%, 0) rotate(10deg) scale(1.05);
   }
 
   100% {
     border-radius: 63% 37% 51% 49% / 43% 62% 38% 57%;
-    transform: translate3d(10vw, 12vh, 0) rotate(18deg) scale(1.1);
+    transform: translate3d(10vw, 30%, 0) rotate(18deg) scale(1.1);
   }
 }
 
@@ -1105,12 +1113,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 59% 41% 53% 47% / 39% 61% 44% 56%;
-    transform: translate3d(-7vw, 8vh, 0) rotate(4deg) scale(1);
+    transform: translate3d(-7vw, 19.047619%, 0) rotate(4deg) scale(1);
   }
 
   100% {
     border-radius: 49% 51% 64% 36% / 57% 43% 50% 50%;
-    transform: translate3d(-13vw, 16vh, 0) rotate(-12deg) scale(1.12);
+    transform: translate3d(-13vw, 38.095238%, 0) rotate(-12deg) scale(1.12);
   }
 }
 
@@ -1122,12 +1130,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 61% 39% 46% 54% / 44% 56% 37% 63%;
-    transform: translate3d(8vw, -4vh, 0) rotate(7deg) scale(1.08);
+    transform: translate3d(8vw, -9.090909%, 0) rotate(7deg) scale(1.08);
   }
 
   100% {
     border-radius: 53% 47% 39% 61% / 62% 38% 55% 45%;
-    transform: translate3d(13vw, 8vh, 0) rotate(15deg) scale(1.14);
+    transform: translate3d(13vw, 18.181818%, 0) rotate(15deg) scale(1.14);
   }
 }
 
@@ -1139,12 +1147,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 42% 58% 57% 43% / 59% 41% 53% 47%;
-    transform: translate3d(-7vw, 7vh, 0) rotate(10deg) scale(1.05);
+    transform: translate3d(-7vw, 15.217391%, 0) rotate(10deg) scale(1.05);
   }
 
   100% {
     border-radius: 54% 46% 63% 37% / 48% 52% 39% 61%;
-    transform: translate3d(-12vw, -6vh, 0) rotate(-8deg) scale(1.1);
+    transform: translate3d(-12vw, -13.043478%, 0) rotate(-8deg) scale(1.1);
   }
 }
 
@@ -1156,12 +1164,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 41% 59% 55% 45% / 60% 40% 48% 52%;
-    transform: translate3d(-6vw, -8vh, 0) rotate(8deg) scale(1.07);
+    transform: translate3d(-6vw, -17.777778%, 0) rotate(8deg) scale(1.07);
   }
 
   100% {
     border-radius: 62% 38% 48% 52% / 42% 58% 61% 39%;
-    transform: translate3d(5vw, -14vh, 0) rotate(19deg) scale(1.12);
+    transform: translate3d(5vw, -31.111111%, 0) rotate(19deg) scale(1.12);
   }
 }
 
@@ -1173,12 +1181,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 56% 44% 43% 57% / 45% 55% 62% 38%;
-    transform: translate3d(9vw, -9vh, 0) rotate(-4deg) scale(1.08);
+    transform: translate3d(9vw, -21.95122%, 0) rotate(-4deg) scale(1.08);
   }
 
   100% {
     border-radius: 45% 55% 66% 34% / 55% 45% 41% 59%;
-    transform: translate3d(15vw, -3vh, 0) rotate(-17deg) scale(1.14);
+    transform: translate3d(15vw, -7.317073%, 0) rotate(-17deg) scale(1.14);
   }
 }
 
@@ -1190,12 +1198,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 48% 52% 37% 63% / 58% 42% 51% 49%;
-    transform: translate3d(-9vw, -8vh, 0) rotate(-3deg) scale(1.1);
+    transform: translate3d(-9vw, -18.604651%, 0) rotate(-3deg) scale(1.1);
   }
 
   100% {
     border-radius: 57% 43% 62% 38% / 40% 60% 45% 55%;
-    transform: translate3d(-16vw, -13vh, 0) rotate(12deg) scale(1.16);
+    transform: translate3d(-16vw, -30.232558%, 0) rotate(12deg) scale(1.16);
   }
 }
 
@@ -1207,12 +1215,12 @@ main[data-presence='true'] .tabbar button.is-active {
 
   50% {
     border-radius: 60% 40% 42% 58% / 53% 47% 61% 39%;
-    transform: translate3d(-5vw, 9vh, 0) rotate(18deg) scale(1.06);
+    transform: translate3d(-5vw, 26.470588%, 0) rotate(18deg) scale(1.06);
   }
 
   100% {
     border-radius: 39% 61% 58% 42% / 46% 54% 37% 63%;
-    transform: translate3d(7vw, 14vh, 0) rotate(-10deg) scale(1.11);
+    transform: translate3d(7vw, 41.176471%, 0) rotate(-10deg) scale(1.11);
   }
 }
 

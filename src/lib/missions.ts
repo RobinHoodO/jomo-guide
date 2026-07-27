@@ -8,6 +8,7 @@ const MISSIONS_CACHE_KEY = 'jomo26:missions-cache';
 export type CapacityType = 'open' | 'limited' | 'exclusive';
 export type MissionVisibility = 'public' | 'hidden';
 export type ClaimState = 'claimed' | 'done' | 'released' | 'submitted';
+export type RewardKind = 'content' | 'clue' | 'roster' | 'handover';
 
 export type Profile = {
   id: string;
@@ -28,6 +29,8 @@ export type Mission = {
   visibility: MissionVisibility;
   is_closed: boolean;
   expires_at: string | null;
+  reward_kind: RewardKind | null;
+  reward_threshold: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -59,6 +62,10 @@ export type CreateMissionInput = {
   requires_verification?: boolean;
   visibility?: MissionVisibility;
   expires_at?: string | null;
+  reward_kind?: RewardKind | null;
+  reward_threshold?: number | null;
+  reward_body?: string | null;
+  reward_closer_body?: string | null;
 };
 
 export type UpdateMissionInput = Partial<
@@ -74,8 +81,13 @@ export type UpdateMissionInput = Partial<
     | 'visibility'
     | 'is_closed'
     | 'expires_at'
+    | 'reward_kind'
+    | 'reward_threshold'
   >
->;
+> & {
+  reward_body?: string | null;
+  reward_closer_body?: string | null;
+};
 
 export type MissionResult<T> = {
   data: T | null;
@@ -88,7 +100,28 @@ export type MissionListResult = Omit<MissionResult<MissionWithClaims[]>, 'data'>
   data: MissionWithClaims[];
 };
 
+export type MissionReward = {
+  has_reward: boolean;
+  kind: RewardKind | null;
+  threshold: number | null;
+  done_count: number;
+  unlocked: boolean;
+  you_did_it: boolean;
+  you_closed_it: boolean;
+  roster: string[];
+  body: string | null;
+  closer_body: string | null;
+};
+
+export type MissionRewardPayload = {
+  body: string;
+  closer_body: string | null;
+};
+
 type MissionRowWithClaims = Mission & { mission_claims?: Claim[] | null };
+type RewardSaveInput = Pick<CreateMissionInput, 'reward_kind' | 'reward_body' | 'reward_closer_body'>;
+type SupabaseClient = NonNullable<ReturnType<typeof getSupabase>>;
+
 export function claimRequiresConnection(capacityType: CapacityType) {
   return capacityType !== 'open';
 }
@@ -170,6 +203,27 @@ function validId(id: string) {
   return id.trim().length > 0;
 }
 
+function hasRewardFields(input: UpdateMissionInput) {
+  return 'reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input;
+}
+
+async function saveMissionReward(supabase: SupabaseClient, missionId: string, reward: RewardSaveInput) {
+  if (!reward.reward_kind) {
+    const { error } = await supabase.from('mission_rewards').delete().eq('mission_id', missionId);
+    return error?.message ?? null;
+  }
+
+  const { error } = await supabase.from('mission_rewards').upsert(
+    {
+      mission_id: missionId,
+      body: reward.reward_body ?? '',
+      closer_body: reward.reward_closer_body ?? null
+    },
+    { onConflict: 'mission_id' }
+  );
+  return error?.message ?? null;
+}
+
 function queued<T>(kind: OutboxKind, payload: OutboxPayload): MissionResult<T> {
   if (!enqueueOutbox(kind, payload)) {
     return fail<T>('This change could not be saved locally. Please try again when connected.');
@@ -229,18 +283,43 @@ export async function createMission(input: CreateMissionInput): Promise<MissionR
   const supabase = getSupabase();
   if (!userId || !supabase) return queued<Mission>('create', payload);
 
+  const { reward_body, reward_closer_body, ...mission } = normalized.data;
+  let data: Mission;
   try {
-    const { data, error } = await supabase
+    const { data: missionData, error } = await supabase
       .from('missions')
-      .insert({ ...normalized.data, creator_id: userId, is_closed: false })
+      .insert({ ...mission, creator_id: userId, is_closed: false })
       .select()
       .single();
 
     if (error) throw error;
-    return result(data as Mission);
+    data = missionData as Mission;
   } catch (error) {
     return isConnectivityError(error) ? queued<Mission>('create', payload) : fail<Mission>(errorMessage(error));
   }
+
+  if (mission.reward_kind) {
+    let rewardError: string | null;
+    try {
+      rewardError = await saveMissionReward(supabase, data.id, {
+        reward_kind: mission.reward_kind,
+        reward_body,
+        reward_closer_body
+      });
+    } catch {
+      rewardError = 'The reward payload could not be saved.';
+    }
+    if (rewardError) {
+      return {
+        data,
+        error: 'Your mission was created, but its promise did not save. Edit it to try again.',
+        stale: false,
+        queued: false
+      };
+    }
+  }
+
+  return result(data);
 }
 
 export async function updateMission(id: string, patch: UpdateMissionInput): Promise<MissionResult<Mission>> {
@@ -256,12 +335,76 @@ export async function updateMission(id: string, patch: UpdateMissionInput): Prom
   const supabase = getSupabase();
   if (!userId || !supabase) return queued<Mission>('update', payload);
 
+  const { reward_body, reward_closer_body, ...mission } = normalized.data;
+  let data: Mission;
   try {
-    const { data, error } = await supabase.from('missions').update(normalized.data).eq('id', id).select().single();
+    const { data: missionData, error } = await supabase.from('missions').update(mission).eq('id', id).select().single();
     if (error) throw error;
-    return result(data as Mission);
+    data = missionData as Mission;
   } catch (error) {
     return isConnectivityError(error) ? queued<Mission>('update', payload) : fail<Mission>(errorMessage(error));
+  }
+
+  if (hasRewardFields(normalized.data)) {
+    let rewardError: string | null;
+    try {
+      rewardError = await saveMissionReward(supabase, id, {
+        reward_kind: normalized.data.reward_kind ?? null,
+        reward_body,
+        reward_closer_body
+      });
+    } catch {
+      rewardError = 'The reward payload could not be saved.';
+    }
+    if (rewardError) {
+      return {
+        data,
+        error: 'Your mission was updated, but its promise did not save. Edit it to try again.',
+        stale: false,
+        queued: false
+      };
+    }
+  }
+
+  return result(data);
+}
+
+export async function getMissionReward(missionId: string): Promise<MissionResult<MissionReward>> {
+  if (!validId(missionId)) return fail<MissionReward>('A mission id is required.');
+  if (!canSpendBandwidth()) return fail<MissionReward>('The channel is quiet from here. Try opening this reward again when you have signal.');
+
+  const supabase = getSupabase();
+  if (!supabase) return fail<MissionReward>('The channel is quiet from here. Try opening this reward again when you have signal.');
+
+  try {
+    const { data, error } = await supabase.rpc('mission_reward', { p_mission_id: missionId });
+    if (error) throw error;
+    return result(data as MissionReward);
+  } catch (error) {
+    return fail<MissionReward>(
+      isConnectivityError(error) ? 'The channel is quiet from here. Try opening this reward again when you have signal.' : errorMessage(error, 'That reward could not be opened right now.')
+    );
+  }
+}
+
+export async function getMissionRewardPayload(missionId: string): Promise<MissionResult<MissionRewardPayload>> {
+  if (!validId(missionId)) return fail<MissionRewardPayload>('A mission id is required.');
+  if (!canSpendBandwidth()) return fail<MissionRewardPayload>('The channel is quiet from here. Try again when you have signal.');
+
+  const supabase = getSupabase();
+  if (!supabase) return fail<MissionRewardPayload>('The channel is quiet from here. Try again when you have signal.');
+
+  try {
+    const { data, error } = await supabase.from('mission_rewards').select('body, closer_body').eq('mission_id', missionId).maybeSingle();
+    if (error) throw error;
+    return result({
+      body: typeof data?.body === 'string' ? data.body : '',
+      closer_body: typeof data?.closer_body === 'string' ? data.closer_body : null
+    });
+  } catch (error) {
+    return fail<MissionRewardPayload>(
+      isConnectivityError(error) ? 'The channel is quiet from here. Try again when you have signal.' : errorMessage(error, 'That reward could not be loaded right now.')
+    );
   }
 }
 

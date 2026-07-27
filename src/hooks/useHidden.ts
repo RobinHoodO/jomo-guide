@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 
 // Mirrors useFavorites: ids the user swiped away, persisted on this phone.
-const STORAGE_KEY = 'jomo26:hidden';
+const DEFAULT_STORAGE_KEY = 'jomo26:hidden';
 
-function readHidden() {
+function readHidden(storageKey: string) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    const parsed = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
     return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
   } catch {
     return [];
   }
 }
 
-export function useHidden() {
-  const [hiddenIds, setHiddenIds] = useState<string[]>(readHidden);
+export function useHidden(storageKey = DEFAULT_STORAGE_KEY) {
+  const [hiddenIds, setHiddenIds] = useState<string[]>(() => readHidden(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(hiddenIds));
-  }, [hiddenIds]);
+    localStorage.setItem(storageKey, JSON.stringify(hiddenIds));
+  }, [hiddenIds, storageKey]);
 
   return useMemo(() => {
     const hiddenSet = new Set(hiddenIds);

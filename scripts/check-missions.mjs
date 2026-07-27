@@ -1,7 +1,7 @@
 // Self-check for src/lib/mission-rules.ts.
 // Run: node --experimental-strip-types scripts/check-missions.mjs
 import assert from 'node:assert';
-import { canClaimHere, normalizeCreateInput } from '../src/lib/mission-rules.ts';
+import { canClaimHere, normalizeCreateInput, normalizeUpdateInput } from '../src/lib/mission-rules.ts';
 
 const canonicalize = (code) => {
   const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
@@ -15,6 +15,7 @@ const baseInput = {
   title: 'Bring a good story',
   capacity_type: 'exclusive'
 };
+const now = Date.parse('2026-07-27T17:15:58Z');
 
 const exclusive = normalizeCreateInput({ ...baseInput, capacity: null });
 assert.equal(exclusive.error, null);
@@ -27,6 +28,44 @@ assert.notEqual(normalizeCreateInput({ ...baseInput, capacity_type: 'open', capa
 assert.notEqual(normalizeCreateInput({ ...baseInput, title: '   ' }).error, null);
 assert.notEqual(
   normalizeCreateInput({ ...baseInput, requires_presence: true, grid_ref: null }).error,
+  null
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, expires_at: '2026-07-27T17:15:00Z' }, now).error,
+  'An expiry has to be in the future.'
+);
+assert.equal(normalizeCreateInput({ ...baseInput, expires_at: '2026-07-27T17:16:00Z' }, now).error, null);
+assert.equal(normalizeCreateInput({ ...baseInput, expires_at: null }, now).error, null);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, expires_at: 'not-a-date' }, now).error,
+  'That expiry date could not be read.'
+);
+assert.equal(normalizeUpdateInput({ expires_at: '2026-07-27T17:15:00Z' }, now).error, 'An expiry has to be in the future.');
+assert.equal(normalizeUpdateInput({ expires_at: '2026-07-27T17:16:00Z' }, now).error, null);
+assert.equal(normalizeUpdateInput({ expires_at: null }, now).error, null);
+assert.equal(normalizeUpdateInput({ expires_at: 'not-a-date' }, now).error, 'That expiry date could not be read.');
+assert.equal(
+  normalizeCreateInput({ ...baseInput, reward_kind: 'content', reward_threshold: 1, reward_body: 'Meet by the fountain.' }).error,
+  null
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, reward_kind: 'content', reward_threshold: 1.5, reward_body: 'Meet by the fountain.' }).error,
+  'A reward needs a whole number of finishers, at least 1.'
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, reward_kind: 'content', reward_threshold: 0, reward_body: 'Meet by the fountain.' }).error,
+  'A reward needs a whole number of finishers, at least 1.'
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, reward_kind: 'content', reward_threshold: 3, reward_body: '   ' }).error,
+  'Say what unlocks when they get there.'
+);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, reward_kind: 'roster', reward_threshold: 3 }).error,
+  null
+);
+assert.equal(
+  normalizeUpdateInput({ reward_kind: 'clue', reward_threshold: 2, reward_body: 'Look for the yellow flag.' }).error,
   null
 );
 

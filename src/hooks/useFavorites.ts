@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY = 'jomo26:favorites';
+const DEFAULT_STORAGE_KEY = 'jomo26:favorites';
 
-function readFavorites() {
+function readFavorites(storageKey: string) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    const parsed = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
     return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
   } catch {
     return [];
   }
 }
 
-export function useFavorites() {
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(readFavorites);
+export function useFavorites(storageKey = DEFAULT_STORAGE_KEY) {
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavorites(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(favoriteIds));
-  }, [favoriteIds]);
+    localStorage.setItem(storageKey, JSON.stringify(favoriteIds));
+  }, [favoriteIds, storageKey]);
 
   return useMemo(() => {
     const favoriteSet = new Set(favoriteIds);

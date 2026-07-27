@@ -8,7 +8,7 @@ const MAX_TRIES = 5;
 export type OutboxKind = 'create' | 'update' | 'delete' | 'claim' | 'done' | 'release' | 'submit' | 'approve' | 'reject';
 
 export type OutboxPayload =
-  | { input: CreateMissionInput }
+  | { input: CreateMissionInput; missionId?: string }
   | { id: string; patch: UpdateMissionInput }
   | { id: string }
   | { missionId: string }
@@ -103,6 +103,10 @@ function errorMessage(error: unknown, fallback = 'Unable to sync this change.') 
   return fallback;
 }
 
+function hasRewardFields(input: UpdateMissionInput) {
+  return 'reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input;
+}
+
 export function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -131,16 +135,56 @@ async function syncEntry(entry: OutboxEntry): Promise<string | null> {
   try {
     switch (entry.kind) {
       case 'create': {
-        const { input } = entry.payload as Extract<OutboxPayload, { input: CreateMissionInput }>;
-        const { error } = await supabase
-          .from('missions')
-          .insert({ ...input, creator_id: userId, is_closed: false });
+        const payload = entry.payload as Extract<OutboxPayload, { input: CreateMissionInput }>;
+        const { input } = payload;
+        const { reward_body, reward_closer_body, ...mission } = input;
+        let missionId = payload.missionId;
+
+        if (!missionId) {
+          const { data, error } = await supabase
+            .from('missions')
+            .insert({ ...mission, creator_id: userId, is_closed: false })
+            .select('id')
+            .single();
+          if (error) return error.message;
+
+          missionId = data.id as string;
+          entry.payload = { input, missionId };
+        }
+
+        if (!mission.reward_kind) return null;
+
+        const { error } = await supabase.from('mission_rewards').upsert(
+          {
+            mission_id: missionId,
+            body: reward_body ?? '',
+            closer_body: reward_closer_body ?? null
+          },
+          { onConflict: 'mission_id' }
+        );
         return error ? error.message : null;
       }
       case 'update': {
         const { id, patch } = entry.payload as Extract<OutboxPayload, { patch: UpdateMissionInput }>;
-        const { error } = await supabase.from('missions').update(patch).eq('id', id);
-        return error ? error.message : null;
+        const { reward_body, reward_closer_body, ...mission } = patch;
+        const { error } = await supabase.from('missions').update(mission).eq('id', id);
+        if (error) return error.message;
+        if (!hasRewardFields(patch)) return null;
+
+        if (!patch.reward_kind) {
+          const { error } = await supabase.from('mission_rewards').delete().eq('mission_id', id);
+          return error ? error.message : null;
+        }
+
+        const { error: rewardError } = await supabase.from('mission_rewards').upsert(
+          {
+            mission_id: id,
+            body: reward_body ?? '',
+            closer_body: reward_closer_body ?? null
+          },
+          { onConflict: 'mission_id' }
+        );
+        return rewardError ? rewardError.message : null;
       }
       case 'delete': {
         const { id } = entry.payload as Extract<OutboxPayload, { id: string }>;

@@ -1,5 +1,5 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
-import type { CapacityType, CreateMissionInput, Mission } from '../lib/missions';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { getMissionRewardPayload, type CapacityType, type CreateMissionInput, type Mission, type RewardKind } from '../lib/missions';
 
 type MissionFormProps = {
   mission: Mission | null;
@@ -8,7 +8,14 @@ type MissionFormProps = {
   onDelete?: () => Promise<string | null>;
 };
 
-type FieldName = 'title' | 'description' | 'capacity' | 'presence' | 'form';
+type FieldName = 'title' | 'description' | 'capacity' | 'presence' | 'expires' | 'reward' | 'form';
+
+const REWARD_KINDS: Array<{ value: RewardKind; label: string; description: string }> = [
+  { value: 'content', label: 'A message that appears', description: 'written now, revealed to everyone who finished' },
+  { value: 'clue', label: 'The next clue', description: 'a square, a word, or the next mission' },
+  { value: 'roster', label: 'Each other', description: 'no message; the people who finished simply become visible to one another' },
+  { value: 'handover', label: 'Something handed over in person', description: 'say where and when; you bring the thing' }
+];
 
 function localDateTime(value: string | null) {
   if (!value) return '';
@@ -30,8 +37,10 @@ function toIso(value: string) {
 function fieldForError(message: string): FieldName {
   if (/title/i.test(message)) return 'title';
   if (/description/i.test(message)) return 'description';
+  if (/expiry/i.test(message)) return 'expires';
   if (/here-only|grid square/i.test(message)) return 'presence';
   if (/capacity|limited|exclusive|open missions/i.test(message)) return 'capacity';
+  if (/reward|unlocks|finishers|what unlocks|closer/i.test(message)) return 'reward';
   return 'form';
 }
 
@@ -46,9 +55,17 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
   const [requiresPresence, setRequiresPresence] = useState(mission?.requires_presence ?? false);
   const [requiresVerification, setRequiresVerification] = useState(mission?.requires_verification ?? false);
   const [expiresAt, setExpiresAt] = useState(localDateTime(mission?.expires_at ?? null));
+  const [hasReward, setHasReward] = useState(Boolean(mission?.reward_kind));
+  const [rewardKind, setRewardKind] = useState<RewardKind>(mission?.reward_kind ?? 'content');
+  const [rewardThreshold, setRewardThreshold] = useState(String(mission?.reward_threshold ?? 3));
+  const [rewardBody, setRewardBody] = useState('');
+  const [rewardCloserBody, setRewardCloserBody] = useState('');
+  const [loadingRewardPayload, setLoadingRewardPayload] = useState(Boolean(mission?.reward_kind));
+  const [rewardPayloadReady, setRewardPayloadReady] = useState(!mission?.reward_kind);
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [saving, setSaving] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
+  const minimumExpiry = localDateTime(new Date().toISOString());
 
   const clearError = (field: FieldName) => {
     setErrors((current) => {
@@ -57,6 +74,35 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!mission?.reward_kind) {
+      setLoadingRewardPayload(false);
+      setRewardPayloadReady(true);
+      return;
+    }
+
+    let active = true;
+    setLoadingRewardPayload(true);
+    setRewardPayloadReady(false);
+    void getMissionRewardPayload(mission.id).then((result) => {
+      if (!active) return;
+
+      setLoadingRewardPayload(false);
+      if (result.error) {
+        setErrors((current) => ({ ...current, reward: result.error! }));
+        return;
+      }
+
+      setRewardBody(result.data?.body ?? '');
+      setRewardCloserBody(result.data?.closer_body ?? '');
+      setRewardPayloadReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [mission?.id, mission?.reward_kind]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,7 +117,11 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
       grid_ref: gridRef.trim() || null,
       requires_presence: requiresPresence,
       requires_verification: requiresVerification,
-      expires_at: toIso(expiresAt)
+      expires_at: toIso(expiresAt),
+      reward_kind: hasReward ? rewardKind : null,
+      reward_threshold: hasReward ? Number(rewardThreshold) : null,
+      reward_body: hasReward && rewardKind !== 'roster' ? rewardBody : null,
+      reward_closer_body: hasReward ? rewardCloserBody : null
     });
 
     setSaving(false);
@@ -210,9 +260,16 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
               id="mission-expires-at"
               className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
               type="datetime-local"
+              min={minimumExpiry}
               value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
+              onChange={(event) => {
+                setExpiresAt(event.target.value);
+                clearError('expires');
+              }}
+              aria-invalid={Boolean(errors.expires)}
+              aria-describedby={errors.expires ? 'mission-expires-at-error' : undefined}
             />
+            {errors.expires ? <span id="mission-expires-at-error" className="mt-1 block text-xs font-semibold text-pink">{errors.expires}</span> : null}
           </label>
         </div>
 
@@ -245,13 +302,105 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
           I want to confirm it&apos;s done
         </label>
 
+        <div className="space-y-2 border-t border-indigo-brand/15 pt-3">
+          <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
+            <input
+              className="mt-0.5 size-4 accent-pink"
+              type="checkbox"
+              checked={hasReward}
+              onChange={(event) => {
+                setHasReward(event.target.checked);
+                clearError('reward');
+              }}
+              aria-describedby={errors.reward ? 'mission-reward-error' : undefined}
+            />
+            Unlock something when enough people finish
+          </label>
+
+          {hasReward ? (
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-reward-kind">
+                What opens up?
+                <select
+                  id="mission-reward-kind"
+                  className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                  value={rewardKind}
+                  onChange={(event) => {
+                    setRewardKind(event.target.value as RewardKind);
+                    clearError('reward');
+                  }}
+                >
+                  {REWARD_KINDS.map((kind) => (
+                    <option key={kind.value} value={kind.value}>{kind.label}</option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs font-normal text-[var(--muted-indigo)]">
+                  {REWARD_KINDS.find((kind) => kind.value === rewardKind)?.description}
+                </span>
+              </label>
+
+              <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-reward-threshold">
+                Unlock after this many finishers
+                <input
+                  id="mission-reward-threshold"
+                  className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  step="1"
+                  value={rewardThreshold}
+                  onChange={(event) => {
+                    setRewardThreshold(event.target.value);
+                    clearError('reward');
+                  }}
+                  aria-invalid={Boolean(errors.reward)}
+                  aria-describedby={errors.reward ? 'mission-reward-error' : undefined}
+                />
+              </label>
+
+              {rewardKind !== 'roster' ? (
+                <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-reward-body">
+                  What unlocks
+                  <textarea
+                    id="mission-reward-body"
+                    className="mt-1 min-h-24 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                    value={rewardBody}
+                    onChange={(event) => {
+                      setRewardBody(event.target.value);
+                      clearError('reward');
+                    }}
+                    aria-invalid={Boolean(errors.reward)}
+                    aria-describedby={errors.reward ? 'mission-reward-error' : undefined}
+                  />
+                </label>
+              ) : null}
+
+              <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-reward-closer-body">
+                A little extra for the closer <span className="font-normal text-[var(--muted-indigo)]">(optional)</span>
+                <textarea
+                  id="mission-reward-closer-body"
+                  className="mt-1 min-h-20 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                  value={rewardCloserBody}
+                  onChange={(event) => {
+                    setRewardCloserBody(event.target.value);
+                    clearError('reward');
+                  }}
+                />
+              </label>
+            </div>
+          ) : null}
+
+          {loadingRewardPayload ? <p className="text-xs text-[var(--muted-indigo)]">Loading what you promised…</p> : null}
+          {errors.reward ? <p id="mission-reward-error" className="text-xs font-semibold text-pink">{errors.reward}</p> : null}
+        </div>
+
         {errors.form ? <p className="text-xs font-semibold text-pink">{errors.form}</p> : null}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             type="submit"
             className="min-h-10 rounded-full bg-pink px-4 text-xs font-black text-cream transition-colors hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
-            disabled={saving}
+            disabled={saving || loadingRewardPayload || !rewardPayloadReady}
           >
             {saving ? 'Saving…' : mission ? 'Save mission' : 'Create mission'}
           </button>

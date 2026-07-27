@@ -1,4 +1,4 @@
-import type { CapacityType, CreateMissionInput, MissionVisibility, UpdateMissionInput } from './missions';
+import type { CapacityType, CreateMissionInput, MissionVisibility, RewardKind, UpdateMissionInput } from './missions';
 
 export type NormalizedCreateInput = {
   title: string;
@@ -10,6 +10,10 @@ export type NormalizedCreateInput = {
   expires_at: string | null;
   requires_presence: boolean;
   requires_verification: boolean;
+  reward_kind: RewardKind | null;
+  reward_threshold: number | null;
+  reward_body: string | null;
+  reward_closer_body: string | null;
 };
 
 export type Validation<T> = { data: T; error: null } | { data: null; error: string };
@@ -20,6 +24,10 @@ export function isCapacityType(value: unknown): value is CapacityType {
 
 export function isVisibility(value: unknown): value is MissionVisibility {
   return value === 'public' || value === 'hidden';
+}
+
+export function isRewardKind(value: unknown): value is RewardKind {
+  return value === 'content' || value === 'clue' || value === 'roster' || value === 'handover';
 }
 
 export function validLimitedCapacity(value: unknown): value is number {
@@ -53,7 +61,65 @@ function validateBoolean(value: unknown, message: string): Validation<boolean> {
   return { data: value, error: null };
 }
 
-export function normalizeCreateInput(input: CreateMissionInput): Validation<NormalizedCreateInput> {
+function validateExpiry(value: string | null | undefined, now: number): Validation<string | null> {
+  if (value === null || value === undefined) return { data: null, error: null };
+  if (typeof value !== 'string') return { data: null, error: 'That expiry date could not be read.' };
+
+  const expiresAt = new Date(value).getTime();
+  if (!Number.isFinite(expiresAt)) return { data: null, error: 'That expiry date could not be read.' };
+  if (expiresAt <= now) return { data: null, error: 'An expiry has to be in the future.' };
+
+  return { data: value, error: null };
+}
+
+type NormalizedReward = {
+  reward_kind: RewardKind | null;
+  reward_threshold: number | null;
+  reward_body: string | null;
+  reward_closer_body: string | null;
+};
+
+function normalizeReward(
+  kindValue: unknown,
+  thresholdValue: unknown,
+  bodyValue: unknown,
+  closerBodyValue: unknown
+): Validation<NormalizedReward> {
+  const reward_kind = kindValue ?? null;
+  const reward_threshold = thresholdValue ?? null;
+
+  if (reward_kind === null && reward_threshold === null) {
+    return {
+      data: { reward_kind: null, reward_threshold: null, reward_body: null, reward_closer_body: null },
+      error: null
+    };
+  }
+
+  if (!isRewardKind(reward_kind)) return { data: null, error: 'Choose what unlocks when they get there.' };
+  if (typeof reward_threshold !== 'number' || !Number.isInteger(reward_threshold) || reward_threshold < 1) {
+    return { data: null, error: 'A reward needs a whole number of finishers, at least 1.' };
+  }
+
+  const reward_body = typeof bodyValue === 'string' ? bodyValue.trim() : '';
+  if (reward_kind !== 'roster' && !reward_body) {
+    return { data: null, error: 'Say what unlocks when they get there.' };
+  }
+  if (closerBodyValue !== undefined && closerBodyValue !== null && typeof closerBodyValue !== 'string') {
+    return { data: null, error: 'The closer’s extra needs to be text.' };
+  }
+
+  return {
+    data: {
+      reward_kind,
+      reward_threshold,
+      reward_body: reward_kind === 'roster' ? null : reward_body,
+      reward_closer_body: typeof closerBodyValue === 'string' ? closerBodyValue.trim() || null : null
+    },
+    error: null
+  };
+}
+
+export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()): Validation<NormalizedCreateInput> {
   const title = validateTitle(input.title);
   if (title.error !== null) return { data: null, error: title.error };
 
@@ -97,6 +163,12 @@ export function normalizeCreateInput(input: CreateMissionInput): Validation<Norm
   const grid_ref = normalizedGridRef(input.grid_ref);
   if (presence.data && !grid_ref) return { data: null, error: 'A here-only mission needs a grid square.' };
 
+  const expiresAt = validateExpiry(input.expires_at, now);
+  if (expiresAt.error !== null) return { data: null, error: expiresAt.error };
+
+  const reward = normalizeReward(input.reward_kind, input.reward_threshold, input.reward_body, input.reward_closer_body);
+  if (reward.error !== null) return { data: null, error: reward.error };
+
   return {
     data: {
       title: title.data,
@@ -105,15 +177,16 @@ export function normalizeCreateInput(input: CreateMissionInput): Validation<Norm
       capacity,
       grid_ref,
       visibility: input.visibility ?? 'public',
-      expires_at: input.expires_at ?? null,
+      expires_at: expiresAt.data,
       requires_presence: presence.data,
-      requires_verification: verification.data
+      requires_verification: verification.data,
+      ...reward.data
     },
     error: null
   };
 }
 
-export function normalizeUpdateInput(input: UpdateMissionInput): Validation<UpdateMissionInput> {
+export function normalizeUpdateInput(input: UpdateMissionInput, now = Date.now()): Validation<UpdateMissionInput> {
   const patch: UpdateMissionInput = {};
 
   if ('title' in input) {
@@ -140,7 +213,11 @@ export function normalizeUpdateInput(input: UpdateMissionInput): Validation<Upda
 
   const grid_ref = 'grid_ref' in input ? normalizedGridRef(input.grid_ref) : undefined;
   if (grid_ref !== undefined) patch.grid_ref = grid_ref;
-  if ('expires_at' in input) patch.expires_at = input.expires_at ?? null;
+  if ('expires_at' in input) {
+    const expiresAt = validateExpiry(input.expires_at, now);
+    if (expiresAt.error !== null) return { data: null, error: expiresAt.error };
+    patch.expires_at = expiresAt.data;
+  }
 
   if ('requires_presence' in input) {
     const presence = validateBoolean(input.requires_presence, 'Presence requirement must be true or false.');
@@ -153,6 +230,12 @@ export function normalizeUpdateInput(input: UpdateMissionInput): Validation<Upda
     const verification = validateBoolean(input.requires_verification, 'Verification requirement must be true or false.');
     if (verification.error !== null) return { data: null, error: verification.error };
     patch.requires_verification = verification.data;
+  }
+
+  if ('reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input) {
+    const reward = normalizeReward(input.reward_kind, input.reward_threshold, input.reward_body, input.reward_closer_body);
+    if (reward.error !== null) return { data: null, error: reward.error };
+    Object.assign(patch, reward.data);
   }
 
   if ('capacity_type' in input) {

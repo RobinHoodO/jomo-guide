@@ -27,6 +27,7 @@ type MapTabProps = {
   toggleFavorite: (id: string) => void;
   onUnlock: () => void;
   onOpenMissions: () => void;
+  onOpenMission: (missionId: string) => void;
 };
 
 const NEIGHBORHOOD_COLORS = [
@@ -236,7 +237,8 @@ export function MapTab({
   isFavorite,
   toggleFavorite,
   onUnlock,
-  onOpenMissions
+  onOpenMissions,
+  onOpenMission
 }: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
   const [showFreeFloating, setShowFreeFloating] = useState(false);
@@ -801,13 +803,18 @@ export function MapTab({
           selectedMissions.length ? (
             <div className="space-y-2">
               {selectedMissions.map((mission) => (
-                <article key={mission.id} className="panel-card space-y-2">
+                <button
+                  key={mission.id}
+                  type="button"
+                  className="panel-card w-full space-y-2 text-left transition-colors hover:bg-yellow/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
+                  onClick={() => onOpenMission(mission.id)}
+                >
                   <h4 className="text-sm font-semibold leading-5 text-indigo-brand">{mission.title}</h4>
                   <div className="flex flex-wrap gap-1.5">
                     <span className="soft-badge">{missionCapacityLabel(mission)}</span>
                     {mission.requires_presence ? <span className="soft-badge">here only</span> : null}
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           ) : (
