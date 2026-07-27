@@ -1,12 +1,13 @@
 import { canSpendBandwidth } from './network';
 import { enqueueOutbox, type OutboxKind, type OutboxPayload } from './outbox';
+import { normalizeCreateInput, normalizeUpdateInput } from './mission-rules';
 import { ensureSignedIn, getSupabase } from './supabase';
 
 const MISSIONS_CACHE_KEY = 'jomo26:missions-cache';
 
 export type CapacityType = 'open' | 'limited' | 'exclusive';
 export type MissionVisibility = 'public' | 'hidden';
-export type ClaimState = 'claimed' | 'done' | 'released';
+export type ClaimState = 'claimed' | 'done' | 'released' | 'submitted';
 
 export type Profile = {
   id: string;
@@ -22,6 +23,8 @@ export type Mission = {
   capacity_type: CapacityType;
   capacity: number | null;
   grid_ref: string | null;
+  requires_presence: boolean;
+  requires_verification: boolean;
   visibility: MissionVisibility;
   is_closed: boolean;
   expires_at: string | null;
@@ -52,6 +55,8 @@ export type CreateMissionInput = {
   capacity_type: CapacityType;
   capacity?: number | null;
   grid_ref?: string | null;
+  requires_presence?: boolean;
+  requires_verification?: boolean;
   visibility?: MissionVisibility;
   expires_at?: string | null;
 };
@@ -59,7 +64,16 @@ export type CreateMissionInput = {
 export type UpdateMissionInput = Partial<
   Pick<
     Mission,
-    'title' | 'description' | 'capacity_type' | 'capacity' | 'grid_ref' | 'visibility' | 'is_closed' | 'expires_at'
+    | 'title'
+    | 'description'
+    | 'capacity_type'
+    | 'capacity'
+    | 'grid_ref'
+    | 'requires_presence'
+    | 'requires_verification'
+    | 'visibility'
+    | 'is_closed'
+    | 'expires_at'
   >
 >;
 
@@ -75,18 +89,6 @@ export type MissionListResult = Omit<MissionResult<MissionWithClaims[]>, 'data'>
 };
 
 type MissionRowWithClaims = Mission & { mission_claims?: Claim[] | null };
-type NormalizedCreateInput = {
-  title: string;
-  description: string;
-  capacity_type: CapacityType;
-  capacity: number | null;
-  grid_ref: string | null;
-  visibility: MissionVisibility;
-  expires_at: string | null;
-};
-
-type Validation<T> = { data: T; error: null } | { data: null; error: string };
-
 export function claimRequiresConnection(capacityType: CapacityType) {
   return capacityType !== 'open';
 }
@@ -152,7 +154,7 @@ async function currentUserId() {
 function withClaims(row: MissionRowWithClaims, userId: string | null): MissionWithClaims {
   const { mission_claims: missionClaims, ...mission } = row;
   const claims = Array.isArray(missionClaims) ? missionClaims : [];
-  const activeClaims = claims.filter((claim) => claim.state === 'claimed');
+  const activeClaims = claims.filter((claim) => claim.state !== 'released');
   const capacity = row.capacity_type === 'open' ? null : row.capacity;
 
   return {
@@ -162,142 +164,6 @@ function withClaims(row: MissionRowWithClaims, userId: string | null): MissionWi
     spotsLeft: capacity === null ? null : Math.max(0, capacity - activeClaims.length),
     myClaim: userId ? claims.find((claim) => claim.claimer_id === userId && claim.state !== 'released') ?? null : null
   };
-}
-
-function isCapacityType(value: unknown): value is CapacityType {
-  return value === 'open' || value === 'limited' || value === 'exclusive';
-}
-
-function isVisibility(value: unknown): value is MissionVisibility {
-  return value === 'public' || value === 'hidden';
-}
-
-function validLimitedCapacity(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1;
-}
-
-function validateTitle(title: unknown): Validation<string> {
-  if (typeof title !== 'string') return { data: null, error: 'A mission title is required.' };
-
-  const trimmed = title.trim();
-  if (trimmed.length < 1 || trimmed.length > 140) {
-    return { data: null, error: 'Mission titles must be between 1 and 140 characters.' };
-  }
-
-  return { data: trimmed, error: null };
-}
-
-function validateDescription(description: unknown): Validation<string> {
-  if (typeof description !== 'string') return { data: null, error: 'Mission descriptions must be text.' };
-  if (description.length > 4000) return { data: null, error: 'Mission descriptions can be at most 4000 characters.' };
-
-  return { data: description, error: null };
-}
-
-function normalizeCreateInput(input: CreateMissionInput): Validation<NormalizedCreateInput> {
-  const title = validateTitle(input.title);
-  if (title.error !== null) return { data: null, error: title.error };
-
-  const description = validateDescription(input.description ?? '');
-  if (description.error !== null) return { data: null, error: description.error };
-
-  if (!isCapacityType(input.capacity_type)) {
-    return { data: null, error: 'Choose an open, limited, or exclusive capacity.' };
-  }
-
-  if (input.visibility !== undefined && !isVisibility(input.visibility)) {
-    return { data: null, error: 'Mission visibility must be public or hidden.' };
-  }
-
-  let capacity: number | null;
-  if (input.capacity_type === 'open') {
-    if (input.capacity !== undefined && input.capacity !== null) {
-      return { data: null, error: 'Open missions cannot have a capacity.' };
-    }
-    capacity = null;
-  } else if (input.capacity_type === 'exclusive') {
-    if (input.capacity !== undefined && input.capacity !== 1) {
-      return { data: null, error: 'Exclusive missions must have a capacity of 1.' };
-    }
-    capacity = 1;
-  } else {
-    if (!validLimitedCapacity(input.capacity)) {
-      return { data: null, error: 'Limited missions need a whole-number capacity of at least 1.' };
-    }
-    capacity = input.capacity;
-  }
-
-  return {
-    data: {
-      title: title.data,
-      description: description.data,
-      capacity_type: input.capacity_type,
-      capacity,
-      grid_ref: input.grid_ref ?? null,
-      visibility: input.visibility ?? 'public',
-      expires_at: input.expires_at ?? null
-    },
-    error: null
-  };
-}
-
-function normalizeUpdateInput(input: UpdateMissionInput): Validation<UpdateMissionInput> {
-  const patch: UpdateMissionInput = {};
-
-  if ('title' in input) {
-    const title = validateTitle(input.title);
-    if (title.error !== null) return { data: null, error: title.error };
-    patch.title = title.data;
-  }
-
-  if ('description' in input) {
-    const description = validateDescription(input.description);
-    if (description.error !== null) return { data: null, error: description.error };
-    patch.description = description.data;
-  }
-
-  if ('visibility' in input) {
-    if (!isVisibility(input.visibility)) return { data: null, error: 'Mission visibility must be public or hidden.' };
-    patch.visibility = input.visibility;
-  }
-
-  if ('is_closed' in input) {
-    if (typeof input.is_closed !== 'boolean') return { data: null, error: 'Closed status must be true or false.' };
-    patch.is_closed = input.is_closed;
-  }
-
-  if ('grid_ref' in input) patch.grid_ref = input.grid_ref ?? null;
-  if ('expires_at' in input) patch.expires_at = input.expires_at ?? null;
-
-  if ('capacity_type' in input) {
-    if (!isCapacityType(input.capacity_type)) {
-      return { data: null, error: 'Choose an open, limited, or exclusive capacity.' };
-    }
-
-    patch.capacity_type = input.capacity_type;
-    if (input.capacity_type === 'open') {
-      if (input.capacity !== undefined && input.capacity !== null) {
-        return { data: null, error: 'Open missions cannot have a capacity.' };
-      }
-      patch.capacity = null;
-    } else if (input.capacity_type === 'exclusive') {
-      if (input.capacity !== undefined && input.capacity !== 1) {
-        return { data: null, error: 'Exclusive missions must have a capacity of 1.' };
-      }
-      patch.capacity = 1;
-    } else {
-      if (!validLimitedCapacity(input.capacity)) {
-        return { data: null, error: 'Limited missions need a whole-number capacity of at least 1.' };
-      }
-      patch.capacity = input.capacity;
-    }
-  } else if ('capacity' in input) {
-    return { data: null, error: 'Choose a capacity type before changing capacity.' };
-  }
-
-  if (Object.keys(patch).length === 0) return { data: null, error: 'Choose at least one mission field to update.' };
-
-  return { data: patch, error: null };
 }
 
 function validId(id: string) {
@@ -451,13 +317,17 @@ export async function claimMission(id: string, capacityType: CapacityType): Prom
 
 async function changeClaimState(
   claimId: string,
-  kind: 'done' | 'release'
+  kind: 'done' | 'release' | 'submit' | 'approve' | 'reject'
 ): Promise<MissionResult<Claim>> {
   if (!validId(claimId)) return fail<Claim>('A claim id is required.');
 
   const timestamp = new Date().toISOString();
   const payload: OutboxPayload =
-    kind === 'done' ? { claimId, doneAt: timestamp } : { claimId, releasedAt: timestamp };
+    kind === 'done' || kind === 'approve'
+      ? { claimId, doneAt: timestamp }
+      : kind === 'release'
+        ? { claimId, releasedAt: timestamp }
+        : { claimId };
 
   if (!canSpendBandwidth()) return queued<Claim>(kind, payload);
 
@@ -465,7 +335,14 @@ async function changeClaimState(
   const supabase = getSupabase();
   if (!userId || !supabase) return queued<Claim>(kind, payload);
 
-  const update = kind === 'done' ? { state: 'done', done_at: timestamp } : { state: 'released', released_at: timestamp };
+  const update =
+    kind === 'done' || kind === 'approve'
+      ? { state: 'done', done_at: timestamp }
+      : kind === 'release'
+        ? { state: 'released', released_at: timestamp }
+        : kind === 'submit'
+          ? { state: 'submitted', done_at: null }
+          : { state: 'claimed', done_at: null };
 
   try {
     const { data, error } = await supabase.from('mission_claims').update(update).eq('id', claimId).select().single();
@@ -482,4 +359,16 @@ export function markClaimDone(claimId: string) {
 
 export function releaseClaim(claimId: string) {
   return changeClaimState(claimId, 'release');
+}
+
+export function submitClaim(claimId: string) {
+  return changeClaimState(claimId, 'submit');
+}
+
+export function approveClaim(claimId: string) {
+  return changeClaimState(claimId, 'approve');
+}
+
+export function rejectClaim(claimId: string) {
+  return changeClaimState(claimId, 'reject');
 }

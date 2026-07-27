@@ -8,7 +8,7 @@ type MissionFormProps = {
   onDelete?: () => Promise<string | null>;
 };
 
-type FieldName = 'title' | 'description' | 'capacity' | 'form';
+type FieldName = 'title' | 'description' | 'capacity' | 'presence' | 'form';
 
 function localDateTime(value: string | null) {
   if (!value) return '';
@@ -30,6 +30,7 @@ function toIso(value: string) {
 function fieldForError(message: string): FieldName {
   if (/title/i.test(message)) return 'title';
   if (/description/i.test(message)) return 'description';
+  if (/here-only|grid square/i.test(message)) return 'presence';
   if (/capacity|limited|exclusive|open missions/i.test(message)) return 'capacity';
   return 'form';
 }
@@ -42,6 +43,8 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
     mission?.capacity_type === 'limited' && mission.capacity !== null ? String(mission.capacity) : ''
   );
   const [gridRef, setGridRef] = useState(mission?.grid_ref ?? '');
+  const [requiresPresence, setRequiresPresence] = useState(mission?.requires_presence ?? false);
+  const [requiresVerification, setRequiresVerification] = useState(mission?.requires_verification ?? false);
   const [expiresAt, setExpiresAt] = useState(localDateTime(mission?.expires_at ?? null));
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [saving, setSaving] = useState(false);
@@ -64,14 +67,17 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
       title,
       description,
       capacity_type: capacityType,
-      capacity: capacityType === 'limited' ? Number(capacity) : null,
+      capacity: capacityType === 'limited' ? Number(capacity) : capacityType === 'exclusive' ? 1 : null,
       grid_ref: gridRef.trim() || null,
+      requires_presence: requiresPresence,
+      requires_verification: requiresVerification,
       expires_at: toIso(expiresAt)
     });
 
     setSaving(false);
     if (error) {
-      setErrors({ [fieldForError(error)]: error });
+      const field = fieldForError(error);
+      setErrors({ [field === 'capacity' && capacityType !== 'limited' ? 'form' : field]: error });
       return;
     }
 
@@ -190,7 +196,10 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
               id="mission-grid-ref"
               className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
               value={gridRef}
-              onChange={(event) => setGridRef(event.target.value)}
+              onChange={(event) => {
+                setGridRef(event.target.value);
+                clearError('presence');
+              }}
               placeholder="e.g. F4"
             />
           </label>
@@ -206,6 +215,35 @@ export function MissionForm({ mission, onClose, onSave, onDelete }: MissionFormP
             />
           </label>
         </div>
+
+        <div className="space-y-1">
+          <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
+            <input
+              className="mt-0.5 size-4 accent-pink"
+              type="checkbox"
+              checked={requiresPresence}
+              onChange={(event) => {
+                setRequiresPresence(event.target.checked);
+                clearError('presence');
+              }}
+              disabled={!gridRef.trim()}
+              aria-describedby={errors.presence ? 'mission-presence-error' : undefined}
+            />
+            Only claimable from its grid square
+          </label>
+          {!gridRef.trim() ? <p className="text-xs text-[var(--muted-indigo)]">Add a grid ref to turn this on.</p> : null}
+          {errors.presence ? <p id="mission-presence-error" className="text-xs font-semibold text-pink">{errors.presence}</p> : null}
+        </div>
+
+        <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
+          <input
+            className="mt-0.5 size-4 accent-pink"
+            type="checkbox"
+            checked={requiresVerification}
+            onChange={(event) => setRequiresVerification(event.target.checked)}
+          />
+          I want to confirm it&apos;s done
+        </label>
 
         {errors.form ? <p className="text-xs font-semibold text-pink">{errors.form}</p> : null}
 

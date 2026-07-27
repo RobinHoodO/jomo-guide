@@ -2,7 +2,7 @@
 // VITE_PRESENCE_CELL_HASH in Vercel and .env.local; never commit the plaintext cell.
 //
 // Accepts padded or unpadded input (B3 and B03 are the same cell) and hashes the canonical
-// unpadded form. This MUST stay identical to canonicalCell() in src/lib/hidden.ts — if the two
+// unpadded form. This MUST stay identical to canonicalCell() in src/lib/geo.ts — if the two
 // ever disagree the door silently never opens, which no build or typecheck can catch.
 import { createHash } from 'node:crypto';
 

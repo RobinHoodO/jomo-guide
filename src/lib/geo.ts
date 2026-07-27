@@ -11,6 +11,23 @@ export type GridPosition = {
   row: number;
 };
 
+/**
+ * Grid codes reach us in two different shapes: the map renders zero-padded codes
+ * (`B03`, see MAP_CELLS in lib/events.ts) while the GPS path builds unpadded ones
+ * (`B3`). Canonicalise to the unpadded, human-speakable form — the one you'd say
+ * out loud — so the hash matches whichever path asked, and so the same string is
+ * what scripts/secret-cell-hash.mjs hashes. Returns null for anything unparseable.
+ */
+export function canonicalCell(code: string): string | null {
+  const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
+  if (!match) return null;
+
+  const row = Number(match[2]);
+  if (!Number.isFinite(row) || row < 1) return null;
+
+  return `${match[1]}${row}`;
+}
+
 export function latLonToGrid(lat: number, lon: number): GridPosition {
   const lat0Rad = (ANCHOR.lat * Math.PI) / 180;
   // ENU meters from the anchor. y grows downward on map-north.

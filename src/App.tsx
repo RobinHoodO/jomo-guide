@@ -317,6 +317,7 @@ export default function App() {
               isFavorite={isFavorite}
               toggleFavorite={handleToggleFavorite}
               onUnlock={handleUnlock}
+              onOpenMissions={() => setTab('missions')}
             />
           ) : null}
 

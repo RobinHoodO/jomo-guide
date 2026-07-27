@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { EventCard } from './EventCard';
 import {
   FREE_FLOATING_EVENTS,
@@ -13,8 +13,10 @@ import {
   parseGridCode,
   type MapCell
 } from '../lib/events';
-import { latLonToGrid, type GridPosition } from '../lib/geo';
+import { canonicalCell, latLonToGrid, type GridPosition } from '../lib/geo';
 import { isUnlocked, matchesSecretCell, unlock } from '../lib/hidden';
+import { listMissions, type MissionListResult, type MissionWithClaims } from '../lib/missions';
+import { CELL_SOURCE, getCurrentCellSnapshot, setCurrentCell, subscribeCurrentCell } from '../lib/whereami';
 import { MAP_META, PLACES, PLAZAS, type Place } from '../data/info-content';
 
 type MapTabProps = {
@@ -24,6 +26,7 @@ type MapTabProps = {
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   onUnlock: () => void;
+  onOpenMissions: () => void;
 };
 
 const NEIGHBORHOOD_COLORS = [
@@ -62,12 +65,13 @@ const ART_SCALE_X = 1; // Artwork width multiplier.
 const ART_SCALE_Y = 1; // Artwork height multiplier.
 const HOLD_DURATION_MS = 2000;
 const HOLD_MOVE_THRESHOLD_PX = 10;
-type MapView = 'events' | 'plazas' | 'places';
+type MapView = 'events' | 'plazas' | 'places' | 'missions';
 
 const MAP_VIEWS: Array<{ key: MapView; label: string }> = [
   { key: 'events', label: 'Events' },
   { key: 'plazas', label: 'Plazas' },
-  { key: 'places', label: 'Places' }
+  { key: 'places', label: 'Places' },
+  { key: 'missions', label: 'Missions' }
 ];
 
 type LocationState = {
@@ -218,10 +222,26 @@ const PLACE_LEGEND: Array<{ label: string; sample: Place }> = (() => {
   return rows;
 })();
 
-export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, toggleFavorite, onUnlock }: MapTabProps) {
+function missionCapacityLabel(mission: MissionWithClaims) {
+  if (mission.capacity_type === 'open') return 'open to everyone';
+  if (mission.capacity_type === 'exclusive') return 'one person only';
+
+  return `${mission.spotsLeft ?? 0} of ${mission.capacity ?? 0} spots left`;
+}
+
+export function MapTab({
+  selectedGrid,
+  onSelectGrid,
+  onSelectCamp,
+  isFavorite,
+  toggleFavorite,
+  onUnlock,
+  onOpenMissions
+}: MapTabProps) {
   const [showMapArt, setShowMapArt] = useState(true);
   const [showFreeFloating, setShowFreeFloating] = useState(false);
   const [mapView, setMapView] = useState<MapView>('events');
+  const [missionBoard, setMissionBoard] = useState<MissionListResult | null>(null);
   const [location, setLocation] = useState<LocationState>({
     grid: null,
     isWatching: false,
@@ -231,11 +251,55 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
   const holdRef = useRef<{ pointerId: number; startX: number; startY: number; timer: number; token: number } | null>(null);
   const holdGenerationRef = useRef(0);
   const suppressNextCellClickRef = useRef(false);
+  const currentCell = useSyncExternalStore(subscribeCurrentCell, getCurrentCellSnapshot, getCurrentCellSnapshot);
   const selectedCell = selectedGrid ? MAP_CELLS_BY_CODE.get(selectedGrid) || null : null;
   const groupedSelectedEvents = useMemo(() => groupByDay(selectedCell?.events || []), [selectedCell?.events]);
   const groupedFreeFloatingEvents = useMemo(() => groupByDay(FREE_FLOATING_EVENTS), []);
   const userMarker = useMemo(() => (location.grid ? floatingGridPosition(location.grid) : null), [location.grid]);
+  const manualHereMarker = useMemo(
+    () => (CELL_SOURCE === 'manual' && currentCell ? markerPosition(currentCell) : null),
+    [currentCell]
+  );
   const showEventLayer = mapView === 'events';
+  const showMissionLayer = mapView === 'missions';
+  const visibleMapViews = isUnlocked() ? MAP_VIEWS : MAP_VIEWS.filter((view) => view.key !== 'missions');
+  const missionCells = useMemo(() => {
+    const mapCellCodes = new Set(
+      MAP_CELLS.map((cell) => canonicalCell(cell.code)).filter((code): code is string => code !== null)
+    );
+    const counts = new Map<string, number>();
+    const missionsByCell = new Map<string, MissionWithClaims[]>();
+    let withoutGridSquare = 0;
+
+    for (const mission of missionBoard?.data ?? []) {
+      const grid = mission.grid_ref ? canonicalCell(mission.grid_ref) : null;
+      if (!grid || !mapCellCodes.has(grid)) {
+        withoutGridSquare += 1;
+        continue;
+      }
+
+      counts.set(grid, (counts.get(grid) ?? 0) + 1);
+      missionsByCell.set(grid, [...(missionsByCell.get(grid) ?? []), mission]);
+    }
+
+    return { counts, missionsByCell, withoutGridSquare };
+  }, [missionBoard]);
+  const selectedMissions = selectedCell
+    ? missionCells.missionsByCell.get(canonicalCell(selectedCell.code) ?? '') ?? []
+    : [];
+
+  useEffect(() => {
+    if (mapView !== 'missions') return;
+
+    let active = true;
+    void listMissions().then((board) => {
+      if (active) setMissionBoard(board);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [mapView]);
 
   useEffect(() => {
     return () => {
@@ -408,9 +472,21 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
             {userMarker?.isOffMap ? 'you are just off this map edge' : location.note}
           </p>
         ) : null}
+        {CELL_SOURCE === 'manual' && currentCell ? (
+          <p className="flex items-center gap-1 text-xs leading-5 text-[var(--muted-indigo)]">
+            <span>you are here · {currentCell} (set by hand)</span>
+            <button
+              type="button"
+              className="font-bold underline decoration-indigo-brand/30 underline-offset-2 hover:text-pink"
+              onClick={() => setCurrentCell(null)}
+            >
+              clear
+            </button>
+          </p>
+        ) : null}
 
         <div className="map-view-toggle" role="tablist" aria-label="Map view">
-          {MAP_VIEWS.map((view) => (
+          {visibleMapViews.map((view) => (
             <button
               key={view.key}
               type="button"
@@ -481,9 +557,22 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
             const rowIndex = MAP_ROWS.indexOf(cell.row);
             const colors = cellColor(cell);
             const isSelected = selectedGrid === cell.code;
-            const fill = showEventLayer ? colors.fill : 'transparent';
-            const stroke = isSelected ? '#E0447E' : showEventLayer ? colors.stroke : 'rgba(242,235,217,0.18)';
-            const fillOpacity = showEventLayer
+            const canonicalCode = canonicalCell(cell.code);
+            const missionCount = canonicalCode ? missionCells.counts.get(canonicalCode) ?? 0 : 0;
+            const hasMapItems = showEventLayer ? cell.eventCount : showMissionLayer ? missionCount : 0;
+            const fill = showMissionLayer && missionCount ? 'var(--pink)' : showEventLayer ? colors.fill : 'transparent';
+            const stroke = isSelected
+              ? '#E0447E'
+              : showMissionLayer && missionCount
+                ? 'var(--pink)'
+                : showEventLayer
+                  ? colors.stroke
+                  : 'rgba(242,235,217,0.18)';
+            const fillOpacity = showMissionLayer
+              ? missionCount
+                ? 1
+                : 0.04
+              : showEventLayer
               ? showMapArt
                 ? cell.eventCount
                   ? 0.58
@@ -498,12 +587,18 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                 key={cell.code}
                 role="button"
                 tabIndex={0}
-                aria-label={`${cell.code}: ${cell.eventCount} events${cell.neighborhood ? ` in ${cell.neighborhood}` : ''}`}
+                aria-label={
+                  showMissionLayer
+                    ? `${cell.code}: ${missionCount} missions`
+                    : `${cell.code}: ${cell.eventCount} events${cell.neighborhood ? ` in ${cell.neighborhood}` : ''}`
+                }
                 onClick={() => {
                   if (suppressNextCellClickRef.current) {
                     suppressNextCellClickRef.current = false;
                     return;
                   }
+                  // Manual placement also makes presence-gated claims testable away from camp.
+                  setCurrentCell(cell.code);
                   onSelectGrid(cell.code);
                 }}
                 onPointerDown={(event) => startCellHold(event, cell.code)}
@@ -519,6 +614,7 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
+                    setCurrentCell(cell.code);
                     onSelectGrid(cell.code);
                   }
                 }}
@@ -529,7 +625,7 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                   y={TOP_AXIS + rowIndex * (CELL_SIZE + GAP)}
                   width={CELL_SIZE}
                   height={CELL_SIZE}
-                  rx={cell.eventCount ? 5 : 3}
+                  rx={hasMapItems ? 5 : 3}
                   className={isSelected ? 'map-cell-selection' : undefined}
                   fill={fill}
                   stroke={stroke}
@@ -537,14 +633,14 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                   fillOpacity={fillOpacity}
                   strokeOpacity={showMapArt ? (isSelected ? 1 : 0.58) : 1}
                 />
-                {showEventLayer && cell.eventCount ? (
+                {hasMapItems ? (
                   <text
                     x={LEFT_AXIS + columnIndex * (CELL_SIZE + GAP) + CELL_SIZE / 2}
                     y={TOP_AXIS + rowIndex * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3.5}
                     textAnchor="middle"
                     className="map-count"
                   >
-                    {cell.eventCount}
+                    {hasMapItems}
                   </text>
                 ) : null}
               </g>
@@ -610,6 +706,15 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
                 </text>
               </g>
             ) : null}
+            {manualHereMarker ? (
+              <g className="map-you-marker" transform={`translate(${manualHereMarker.x} ${manualHereMarker.y})`}>
+                <circle r="7.5" className="map-you-pulse" />
+                <circle r="4.2" className="map-you-dot" />
+                <text x="0" y="-10.5" textAnchor="middle" className="map-you-label">
+                  YOU ARE HERE
+                </text>
+              </g>
+            ) : null}
           </g>
         </svg>
 
@@ -650,6 +755,20 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
             </div>
           ) : null}
 
+          {mapView === 'missions' ? (
+            <div className="space-y-1">
+              <p className="text-xs leading-5 text-[var(--muted-indigo)]">
+                {missionBoard ? `${missionBoard.data.length} missions on the board` : 'Loading missions…'}
+                {missionBoard?.stale ? ' · showing your last synced board' : ''}
+              </p>
+              {missionCells.withoutGridSquare ? (
+                <p className="text-xs leading-5 text-[var(--muted-indigo)]">
+                  {missionCells.withoutGridSquare} mission{missionCells.withoutGridSquare === 1 ? '' : 's'} with no grid square
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <p className="text-xs leading-5 text-[var(--muted-indigo)]">{MAP_META.note}</p>
           {mapView === 'places' ? (
             <p className="text-xs font-bold leading-5 text-pink">{MAP_META.consentDropboxes}</p>
@@ -662,12 +781,41 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
           <div>
             <p className="section-kicker">Selected Square</p>
             <h3 className="display-heading text-base">
-              {selectedCell ? `${selectedCell.code} · ${selectedCell.eventCount} happenings` : 'Pick a grid square'}
+              {selectedCell
+                ? mapView === 'missions'
+                  ? `${selectedCell.code} · ${selectedMissions.length} mission${selectedMissions.length === 1 ? '' : 's'}`
+                  : `${selectedCell.code} · ${selectedCell.eventCount} happenings`
+                : 'Pick a grid square'}
             </h3>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            {mapView === 'missions' ? (
+              <button type="button" className="chip" onClick={onOpenMissions}>
+                Open in Missions
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {selectedCell?.events.length ? (
+        {mapView === 'missions' ? (
+          selectedMissions.length ? (
+            <div className="space-y-2">
+              {selectedMissions.map((mission) => (
+                <article key={mission.id} className="panel-card space-y-2">
+                  <h4 className="text-sm font-semibold leading-5 text-indigo-brand">{mission.title}</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="soft-badge">{missionCapacityLabel(mission)}</span>
+                    {mission.requires_presence ? <span className="soft-badge">here only</span> : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="panel-card text-sm text-[var(--muted-indigo)]">
+              {selectedCell ? 'No missions are on this square.' : 'Choose a square to see its missions.'}
+            </p>
+          )
+        ) : selectedCell?.events.length ? (
           <div className="space-y-3">
             {groupedSelectedEvents.map((group) => (
               <section key={group.day} className="space-y-2 pt-1.5">

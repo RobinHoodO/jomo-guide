@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from 'react';
 import { MissionForm } from './MissionForm';
 import {
+  approveClaim,
   claimMission,
   createMission,
   deleteMission,
   listMissions,
   markClaimDone,
+  rejectClaim,
   releaseClaim,
+  submitClaim,
   updateMission,
   type Claim,
   type CreateMissionInput,
@@ -14,9 +17,12 @@ import {
   type MissionListResult,
   type MissionWithClaims
 } from '../lib/missions';
+import { canClaimHere } from '../lib/mission-rules';
+import { canonicalCell } from '../lib/geo';
 import { canSpendBandwidth } from '../lib/network';
 import { flushOutbox, getSnapshot as getOutboxSnapshot, subscribe as subscribeOutbox } from '../lib/outbox';
 import { ensureSignedIn, getSupabase } from '../lib/supabase';
+import { CELL_SOURCE, getCurrentCellSnapshot, subscribeCurrentCell } from '../lib/whereami';
 
 const ANONYMOUS_BURNER = 'Anonymous burner';
 
@@ -41,10 +47,15 @@ function isExpired(mission: MissionWithClaims) {
   return Number.isFinite(expiresAt) && expiresAt <= Date.now();
 }
 
+function isActiveClaim(claim: Claim) {
+  return claim.state !== 'released';
+}
+
 function isUnavailable(mission: MissionWithClaims) {
   if (mission.is_closed || isExpired(mission) || mission.myClaim?.state === 'done') return true;
-  if (mission.capacity_type === 'limited') return (mission.spotsLeft ?? 0) === 0;
-  if (mission.capacity_type === 'exclusive') return mission.activeClaimCount > 0;
+  const activeClaimCount = mission.claims.filter(isActiveClaim).length;
+  if (mission.capacity_type === 'limited') return activeClaimCount >= (mission.capacity ?? 0);
+  if (mission.capacity_type === 'exclusive') return activeClaimCount > 0;
   return false;
 }
 
@@ -52,7 +63,7 @@ function updateClaimOnMission(mission: MissionWithClaims, claim: Claim, userId: 
   const claims = mission.claims.some((item) => item.id === claim.id)
     ? mission.claims.map((item) => (item.id === claim.id ? claim : item))
     : [...mission.claims, claim];
-  const activeClaimCount = claims.filter((item) => item.state === 'claimed').length;
+  const activeClaimCount = claims.filter(isActiveClaim).length;
   const capacity = mission.capacity_type === 'open' ? null : mission.capacity;
 
   return {
@@ -71,6 +82,8 @@ function missionPatch(input: CreateMissionInput): Partial<Mission> {
     capacity_type: input.capacity_type,
     capacity: input.capacity_type === 'limited' ? input.capacity ?? null : input.capacity_type === 'exclusive' ? 1 : null,
     grid_ref: input.grid_ref ?? null,
+    requires_presence: input.requires_presence ?? false,
+    requires_verification: input.requires_verification ?? false,
     expires_at: input.expires_at ?? null
   };
 }
@@ -83,11 +96,16 @@ function MissionCard({
   isQueuedClaim,
   readOnly,
   busy,
+  currentCell,
+  claimerNames,
   onSelectGrid,
   onEdit,
   onClaim,
   onDone,
-  onRelease
+  onSubmit,
+  onRelease,
+  onApprove,
+  onReject
 }: {
   mission: MissionWithClaims;
   creatorName: string;
@@ -96,15 +114,23 @@ function MissionCard({
   isQueuedClaim: boolean;
   readOnly: boolean;
   busy: boolean;
+  currentCell: string | null;
+  claimerNames: Record<string, string>;
   onSelectGrid: (grid: string) => void;
   onEdit: () => void;
   onClaim: () => void;
   onDone: (claim: Claim) => void;
+  onSubmit: (claim: Claim) => void;
   onRelease: (claim: Claim) => void;
+  onApprove: (claim: Claim) => void;
+  onReject: (claim: Claim) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const claimNeedsSignal = mission.capacity_type !== 'open' && !canSpendBandwidth();
   const canClaim = !isYours && !mission.myClaim && !isQueuedClaim && !isUnavailable(mission);
+  // Presence is a client-side game rule, not server enforcement.
+  const claimHere = canClaimHere(mission, currentCell, canonicalCell);
+  const submittedClaims = mission.claims.filter((claim) => claim.state === 'submitted');
 
   return (
     <article
@@ -127,6 +153,7 @@ function MissionCard({
                 {mission.grid_ref}
               </button>
             ) : null}
+            {mission.requires_presence && mission.grid_ref ? <span className="soft-badge">here only · {mission.grid_ref}</span> : null}
             <span className="soft-badge truncate">{capacityLabel(mission)}</span>
           </div>
           <button
@@ -158,6 +185,9 @@ function MissionCard({
           {isTakenOn && mission.myClaim?.state === 'claimed' ? (
             <p className="text-xs font-semibold text-pink">You’ve got this one.</p>
           ) : null}
+          {isTakenOn && mission.myClaim?.state === 'submitted' ? (
+            <p className="text-xs font-semibold text-pink">Waiting for {creatorName} to confirm.</p>
+          ) : null}
           {canClaim ? (
             <div className="space-y-1.5">
               <button
@@ -167,10 +197,15 @@ function MissionCard({
                   event.stopPropagation();
                   onClaim();
                 }}
-                disabled={readOnly || claimNeedsSignal || busy}
+                disabled={readOnly || claimNeedsSignal || !claimHere || busy}
               >
                 {busy ? 'Claiming…' : 'Claim mission'}
               </button>
+              {!claimHere && mission.grid_ref ? (
+                <p className="text-xs font-semibold text-pink">
+                  Stand in {mission.grid_ref} to claim this one.{CELL_SOURCE === 'manual' ? ' (tap that square on the map)' : ''}
+                </p>
+              ) : null}
               {claimNeedsSignal ? <p className="text-xs font-semibold text-pink">You need signal to claim this one.</p> : null}
             </div>
           ) : null}
@@ -194,11 +229,15 @@ function MissionCard({
                 className="min-h-10 rounded-full bg-pink px-4 text-xs font-black text-cream transition-colors hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onDone(mission.myClaim!);
+                  if (mission.requires_verification) {
+                    onSubmit(mission.myClaim!);
+                  } else {
+                    onDone(mission.myClaim!);
+                  }
                 }}
                 disabled={readOnly || busy}
               >
-                {busy ? 'Saving…' : 'Mark done'}
+                {busy ? 'Saving…' : mission.requires_verification ? 'Submit for approval' : 'Mark done'}
               </button>
               <button
                 type="button"
@@ -211,6 +250,50 @@ function MissionCard({
               >
                 Release
               </button>
+            </div>
+          ) : null}
+          {isTakenOn && mission.myClaim?.state === 'submitted' ? (
+            <button
+              type="button"
+              className="min-h-10 rounded-full border border-indigo-brand/20 px-4 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRelease(mission.myClaim!);
+              }}
+              disabled={readOnly || busy}
+            >
+              Release
+            </button>
+          ) : null}
+          {isYours && submittedClaims.length ? (
+            <div className="space-y-2 border-t border-indigo-brand/15 pt-2">
+              {submittedClaims.map((claim) => (
+                <div key={claim.id} className="flex flex-wrap items-center gap-2 text-xs font-semibold text-indigo-brand">
+                  <span className="mr-auto">{claimerNames[claim.claimer_id] ?? ANONYMOUS_BURNER}</span>
+                  <button
+                    type="button"
+                    className="min-h-8 rounded-full bg-pink px-3 text-xs font-black text-cream transition-colors hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onApprove(claim);
+                    }}
+                    disabled={readOnly || busy}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-8 rounded-full border border-indigo-brand/20 px-3 text-xs font-black text-indigo-brand transition-colors hover:border-pink hover:text-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onReject(claim);
+                    }}
+                    disabled={readOnly || busy}
+                  >
+                    Not yet
+                  </button>
+                </div>
+              ))}
             </div>
           ) : null}
         </div>
@@ -237,11 +320,12 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
   const [savingProfile, setSavingProfile] = useState(false);
   const initialization = useRef<Promise<{ id: string | null; board: MissionListResult }> | null>(null);
   const outbox = useSyncExternalStore(subscribeOutbox, getOutboxSnapshot, getOutboxSnapshot);
+  const currentCell = useSyncExternalStore(subscribeCurrentCell, getCurrentCellSnapshot, getCurrentCellSnapshot);
 
   const loadCreatorNames = useCallback(async (items: MissionWithClaims[]) => {
     if (!canSpendBandwidth()) return;
 
-    const ids = [...new Set(items.map((item) => item.creator_id))];
+    const ids = [...new Set(items.flatMap((item) => [item.creator_id, ...item.claims.map((claim) => claim.claimer_id)]))];
     const supabase = getSupabase();
     if (!ids.length || !supabase) return;
 
@@ -428,9 +512,22 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
     }
   };
 
-  const changeClaim = async (mission: MissionWithClaims, claimToChange: Claim, action: 'done' | 'release') => {
+  const changeClaim = async (
+    mission: MissionWithClaims,
+    claimToChange: Claim,
+    action: 'done' | 'release' | 'submit' | 'approve' | 'reject'
+  ) => {
     setBusyMissionId(mission.id);
-    const result = action === 'done' ? await markClaimDone(claimToChange.id) : await releaseClaim(claimToChange.id);
+    const result =
+      action === 'done'
+        ? await markClaimDone(claimToChange.id)
+        : action === 'release'
+          ? await releaseClaim(claimToChange.id)
+          : action === 'submit'
+            ? await submitClaim(claimToChange.id)
+            : action === 'approve'
+              ? await approveClaim(claimToChange.id)
+              : await rejectClaim(claimToChange.id);
     setBusyMissionId(null);
 
     if (result.error) {
@@ -440,12 +537,31 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
 
     const claim = result.data ?? {
       ...claimToChange,
-      state: action === 'done' ? 'done' : 'released',
-      done_at: action === 'done' ? new Date().toISOString() : claimToChange.done_at,
+      state:
+        action === 'done' || action === 'approve'
+          ? 'done'
+          : action === 'release'
+            ? 'released'
+            : action === 'submit'
+              ? 'submitted'
+              : 'claimed',
+      done_at: action === 'done' || action === 'approve' ? new Date().toISOString() : action === 'release' ? claimToChange.done_at : null,
       released_at: action === 'release' ? new Date().toISOString() : claimToChange.released_at
     };
     setMissions((current) => current.map((item) => (item.id === mission.id ? updateClaimOnMission(item, claim, userId) : item)));
-    setActionNotice(result.queued ? `${action === 'done' ? 'Done' : 'Release'} is waiting for signal.` : action === 'done' ? 'Marked done.' : 'Mission released.');
+    setActionNotice(
+      result.queued
+        ? `${action === 'done' ? 'Done' : action === 'release' ? 'Release' : action === 'submit' ? 'Submission' : action === 'approve' ? 'Approval' : 'Response'} is waiting for signal.`
+        : action === 'done'
+          ? 'Marked done.'
+          : action === 'release'
+            ? 'Mission released.'
+            : action === 'submit'
+              ? 'Submitted for approval.'
+              : action === 'approve'
+                ? 'Claim approved.'
+                : 'Sent back for more work.'
+    );
   };
 
   const sorted = useMemo(
@@ -454,7 +570,9 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
   );
   const yours = sorted.filter((mission) => mission.creator_id === userId);
   const takenOn = sorted.filter(
-    (mission) => mission.creator_id !== userId && (mission.myClaim?.state === 'claimed' || queuedClaimIds.has(mission.id))
+    (mission) =>
+      mission.creator_id !== userId &&
+      (mission.myClaim?.state === 'claimed' || mission.myClaim?.state === 'submitted' || queuedClaimIds.has(mission.id))
   );
   const open = sorted.filter(
     (mission) => mission.creator_id !== userId && !takenOn.includes(mission) && !isUnavailable(mission)
@@ -475,11 +593,16 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp }: Missions
       isQueuedClaim={queuedClaimIds.has(mission.id)}
       readOnly={readOnly}
       busy={busyMissionId === mission.id}
+      currentCell={currentCell}
+      claimerNames={creatorNames}
       onSelectGrid={onSelectGrid}
       onEdit={() => setForm(mission)}
       onClaim={() => void claim(mission)}
       onDone={(claimToChange) => void changeClaim(mission, claimToChange, 'done')}
+      onSubmit={(claimToChange) => void changeClaim(mission, claimToChange, 'submit')}
       onRelease={(claimToChange) => void changeClaim(mission, claimToChange, 'release')}
+      onApprove={(claimToChange) => void changeClaim(mission, claimToChange, 'approve')}
+      onReject={(claimToChange) => void changeClaim(mission, claimToChange, 'reject')}
     />
   );
 

@@ -5,7 +5,7 @@ import type { CreateMissionInput, UpdateMissionInput } from './missions';
 const OUTBOX_KEY = 'jomo26:outbox';
 const MAX_TRIES = 5;
 
-export type OutboxKind = 'create' | 'update' | 'delete' | 'claim' | 'done' | 'release';
+export type OutboxKind = 'create' | 'update' | 'delete' | 'claim' | 'done' | 'release' | 'submit' | 'approve' | 'reject';
 
 export type OutboxPayload =
   | { input: CreateMissionInput }
@@ -13,7 +13,8 @@ export type OutboxPayload =
   | { id: string }
   | { missionId: string }
   | { claimId: string; doneAt: string }
-  | { claimId: string; releasedAt: string };
+  | { claimId: string; releasedAt: string }
+  | { claimId: string };
 
 export type OutboxEntry = {
   id: string;
@@ -36,7 +37,17 @@ let snapshot: OutboxSnapshot = { pendingCount: 0 };
 let flushInFlight: Promise<FlushOutboxResult> | undefined;
 
 function isOutboxKind(value: unknown): value is OutboxKind {
-  return value === 'create' || value === 'update' || value === 'delete' || value === 'claim' || value === 'done' || value === 'release';
+  return (
+    value === 'create' ||
+    value === 'update' ||
+    value === 'delete' ||
+    value === 'claim' ||
+    value === 'done' ||
+    value === 'release' ||
+    value === 'submit' ||
+    value === 'approve' ||
+    value === 'reject'
+  );
 }
 
 function readOutbox(): OutboxEntry[] {
@@ -154,6 +165,30 @@ async function syncEntry(entry: OutboxEntry): Promise<string | null> {
         const { error } = await supabase
           .from('mission_claims')
           .update({ state: 'released', released_at: releasedAt })
+          .eq('id', claimId);
+        return error ? error.message : null;
+      }
+      case 'submit': {
+        const { claimId } = entry.payload as Extract<OutboxPayload, { claimId: string }>;
+        const { error } = await supabase
+          .from('mission_claims')
+          .update({ state: 'submitted', done_at: null })
+          .eq('id', claimId);
+        return error ? error.message : null;
+      }
+      case 'approve': {
+        const { claimId, doneAt } = entry.payload as Extract<OutboxPayload, { doneAt: string }>;
+        const { error } = await supabase
+          .from('mission_claims')
+          .update({ state: 'done', done_at: doneAt })
+          .eq('id', claimId);
+        return error ? error.message : null;
+      }
+      case 'reject': {
+        const { claimId } = entry.payload as Extract<OutboxPayload, { claimId: string }>;
+        const { error } = await supabase
+          .from('mission_claims')
+          .update({ state: 'claimed', done_at: null })
           .eq('id', claimId);
         return error ? error.message : null;
       }

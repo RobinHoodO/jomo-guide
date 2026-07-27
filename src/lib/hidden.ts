@@ -1,4 +1,5 @@
-import { latLonToGrid } from './geo';
+import { canonicalCell } from './geo';
+import { getCurrentCell, subscribeCurrentCell } from './whereami';
 
 // Hashing raises the effort from "read the source" to "write a script" — the grid is only 676
 // cells, so a determined person can still brute-force it in milliseconds. This deters the casual
@@ -29,7 +30,6 @@ let unlockSnapshot = readUnlockSnapshot();
 let isPresent = false;
 let presenceCandidate = false;
 let presenceTimer: number | null = null;
-let presenceWatchId: number | null = null;
 let presenceCheckGeneration = 0;
 
 function constantTimeEquals(left: string, right: string) {
@@ -41,23 +41,6 @@ function constantTimeEquals(left: string, right: string) {
   }
 
   return difference === 0;
-}
-
-/**
- * Grid codes reach us in two different shapes: the map renders zero-padded codes
- * (`B03`, see MAP_CELLS in lib/events.ts) while the GPS path builds unpadded ones
- * (`B3`). Canonicalise to the unpadded, human-speakable form — the one you'd say
- * out loud — so the hash matches whichever path asked, and so the same string is
- * what scripts/secret-cell-hash.mjs hashes. Returns null for anything unparseable.
- */
-export function canonicalCell(code: string): string | null {
-  const match = /^([A-Z]+)0*(\d+)$/.exec(code.trim().toUpperCase());
-  if (!match) return null;
-
-  const row = Number(match[2]);
-  if (!Number.isFinite(row) || row < 1) return null;
-
-  return `${match[1]}${row}`;
 }
 
 async function hashMatchesCell(code: string, expectedHash: string | undefined): Promise<boolean> {
@@ -157,51 +140,19 @@ function queuePresence(nextPresence: boolean) {
   }, PRESENCE_DEBOUNCE_MS);
 }
 
-function gridCellForCoordinates(latitude: number, longitude: number) {
-  const position = latLonToGrid(latitude, longitude);
-  const column = Math.floor(position.col);
-  const row = Math.floor(position.row);
-
-  if (column < 0 || column > 25 || row < 0 || row > 25) return null;
-
-  return `${String.fromCharCode(65 + column)}${row + 1}`;
+function checkPresence(cell: string | null) {
+  const checkGeneration = ++presenceCheckGeneration;
+  void matchesPresenceCell(cell ?? '').then((matchesPresence) => {
+    if (checkGeneration !== presenceCheckGeneration || presenceListeners.size === 0) return;
+    queuePresence(matchesPresence);
+  });
 }
 
-function stopPresenceWatch() {
+function stopPresenceCheck() {
   presenceCheckGeneration += 1;
   clearPresenceTimer();
-  if (presenceWatchId !== null && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-    navigator.geolocation.clearWatch(presenceWatchId);
-  }
-  presenceWatchId = null;
   presenceCandidate = false;
   setPresence(false);
-}
-
-function startPresenceWatch() {
-  if (presenceWatchId !== null || !isUnlocked()) return;
-  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return;
-
-  try {
-    presenceWatchId = navigator.geolocation.watchPosition(
-      async (position) => {
-        const cell = gridCellForCoordinates(position.coords.latitude, position.coords.longitude);
-        const checkGeneration = ++presenceCheckGeneration;
-        const matchesPresence = cell ? await matchesPresenceCell(cell) : false;
-
-        if (checkGeneration !== presenceCheckGeneration || presenceWatchId === null) return;
-        queuePresence(matchesPresence);
-      },
-      () => {
-        // Location is strictly optional. Errors should not reveal or interrupt anything.
-        stopPresenceWatch();
-      },
-      { enableHighAccuracy: false }
-    );
-  } catch {
-    // Older browsers can throw before invoking the error callback.
-    stopPresenceWatch();
-  }
 }
 
 export function isUnlocked() {
@@ -234,10 +185,13 @@ export function getSnapshot() {
 export function subscribePresence(listener: PresenceListener) {
   presenceListeners.add(listener);
   listener(isPresent);
-  startPresenceWatch();
+  const checkCurrentCell = () => checkPresence(getCurrentCell());
+  const unsubscribeCurrentCell = subscribeCurrentCell(checkCurrentCell);
+  checkCurrentCell();
 
   return () => {
     presenceListeners.delete(listener);
-    if (presenceListeners.size === 0) stopPresenceWatch();
+    unsubscribeCurrentCell();
+    if (presenceListeners.size === 0) stopPresenceCheck();
   };
 }
