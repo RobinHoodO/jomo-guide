@@ -10,7 +10,6 @@ const EXPERIENCES: Array<{ id: GridExperienceId; cellHash: string | undefined }>
 
 const EXIT_DEBOUNCE_MS = 10_000;
 const experienceListeners = new Set<(id: GridExperienceId | null) => void>();
-const dismissedExperiences = new Set<GridExperienceId>();
 const cellMatches = new Map<string, Promise<boolean>>();
 
 let experienceSnapshot: GridExperienceId | null = null;
@@ -67,7 +66,6 @@ async function experienceForCell(cell: string | null): Promise<GridExperienceId 
   if (!cell) return null;
 
   for (const experience of EXPERIENCES) {
-    if (dismissedExperiences.has(experience.id)) continue;
     if (await memoizedCellMatch(cell, experience.cellHash)) return experience.id;
   }
 
@@ -138,16 +136,9 @@ export function subscribeGridExperience(listener: (id: GridExperienceId | null) 
   };
 }
 
+// Declining an experience is the app's business, not the registry's: this module only answers
+// "which cell experience does geography select right now". A question inside an experience can
+// gate its depth; geography itself is intentionally not gated on isUnlocked().
 export function getGridExperienceSnapshot() {
   return experienceSnapshot;
-}
-
-// A question inside an experience can gate its depth; geography itself is intentionally not gated on isUnlocked().
-export function dismissGridExperience(id: GridExperienceId) {
-  dismissedExperiences.add(id);
-  if (experienceSnapshot === id) {
-    experienceCandidate = null;
-    clearExitTimer();
-    setGridExperience(null);
-  }
 }

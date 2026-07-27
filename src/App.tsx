@@ -22,11 +22,7 @@ import {
   subscribe as subscribeHidden,
   subscribePresence
 } from './lib/hidden';
-import {
-  dismissGridExperience,
-  getGridExperienceSnapshot,
-  subscribeGridExperience
-} from './lib/grid-experiences';
+import { getGridExperienceSnapshot, subscribeGridExperience } from './lib/grid-experiences';
 import { canSpendBandwidth } from './lib/network';
 import { flushUsage, recordOpen } from './lib/usage';
 
@@ -77,11 +73,17 @@ export default function App() {
   const [sharedEvent, setSharedEvent] = useState<SharedEvent | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [presence, setPresence] = useState(false);
+  const [quantDeclined, setQuantDeclined] = useState(false);
   const toastTimer = useRef<number | null>(null);
   const deepLinkHighlightTimer = useRef<number | null>(null);
   const onlineFlushTimer = useRef<number | null>(null);
   const hasRecordedOpen = useRef(false);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+
+  // Leaving the grid resets the decline: walking out and back in re-arms the takeover.
+  useEffect(() => {
+    if (gridExperience === null) setQuantDeclined(false);
+  }, [gridExperience]);
 
   const handleUnlock = useCallback(() => {
     setTab('missions');
@@ -196,7 +198,8 @@ export default function App() {
     toggleFavorite(id);
   };
 
-  const isQuantTerminalActive = gridExperience === 'quant-terminal';
+  const inQuantCell = gridExperience === 'quant-terminal';
+  const isQuantTerminalActive = inQuantCell && !quantDeclined;
 
   return (
     <>
@@ -210,7 +213,7 @@ export default function App() {
           <>
             <UpdateBanner />
             <div className="quant-shell">
-              <QuantTerminal onDecline={() => dismissGridExperience('quant-terminal')} />
+              <QuantTerminal onDecline={() => setQuantDeclined(true)} />
               <MapTab
                 selectedGrid={selectedGrid}
                 onSelectGrid={selectGrid}
@@ -227,6 +230,11 @@ export default function App() {
           <>
             <InstallBanner onOpenInfo={() => setTab('info')} />
             <UpdateBanner />
+            {inQuantCell ? (
+              <button type="button" className="quant-standby" onClick={() => setQuantDeclined(false)}>
+                <span aria-hidden="true">&gt;</span> quant terminal standing by — open
+              </button>
+            ) : null}
             <div className="ambient-blobs" aria-hidden="true">
               <div className="ambient-blob ambient-blob-1" />
               <div className="ambient-blob ambient-blob-2" />

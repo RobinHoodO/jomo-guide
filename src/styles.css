@@ -518,6 +518,28 @@ main[data-quant='true'] ::selection {
   }
 }
 
+/* Declined but still standing in the grid: the terminal waits at the top of the ordinary guide. */
+.quant-standby {
+  position: relative;
+  z-index: 10;
+  display: block;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  color: #33ff66;
+  text-align: left;
+  background: #020704;
+  border-bottom: 1px solid rgba(51, 255, 102, 0.5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+}
+
+.quant-standby:hover,
+.quant-standby:focus-visible {
+  color: #020704;
+  background: #33ff66;
+  outline: none;
+}
+
 .presence-place {
   color: var(--pink);
 }
