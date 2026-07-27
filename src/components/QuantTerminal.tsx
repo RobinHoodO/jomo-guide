@@ -3,7 +3,6 @@ import { normalizeAnswer } from '../lib/mission-rules';
 import { nextQuantStage, type QuantEvent, type QuantStage } from '../lib/quant';
 import { QuantArt } from './QuantArt';
 
-const STORAGE_KEY = 'jomo26:quant';
 const ANSWER_HASH = import.meta.env.VITE_QUANT_ANSWER_HASH;
 const BOOT_LINES = ['> signal acquired', '> carrier: M-grid', '> query pending…'];
 const QUERY = 'QUERY: name the joy of missing out.';
@@ -24,25 +23,6 @@ const INSTALL_STEPS = [
   { delay: 1100, line: '> install complete.' }
 ];
 
-function readInstalled() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return false;
-
-    return (JSON.parse(stored) as { installed?: unknown }).installed === true;
-  } catch {
-    return false;
-  }
-}
-
-function writeInstalled() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ installed: true }));
-  } catch {
-    // The program remains available for this session when storage is unavailable.
-  }
-}
-
 async function answerMatches(answer: string): Promise<boolean> {
   try {
     if (!ANSWER_HASH || typeof crypto === 'undefined' || !crypto.subtle) return false;
@@ -58,7 +38,6 @@ async function answerMatches(answer: string): Promise<boolean> {
 }
 
 export function QuantTerminal({ onDecline }: { onDecline: () => void }) {
-  const installedRef = useRef(readInstalled());
   const outputRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [stage, setStage] = useState<QuantStage>('boot');
@@ -102,10 +81,9 @@ export function QuantTerminal({ onDecline }: { onDecline: () => void }) {
     };
 
     typeTimer = window.setTimeout(typeCharacter, 110);
-    finishTimer = window.setTimeout(
-      () => advance(installedRef.current ? 'installed-mount' : 'boot-complete'),
-      installedRef.current ? 550 : 3000
-    );
+    // Always the full rite: the terminal never remembers an install, so every entry
+    // into the grid asks the question again.
+    finishTimer = window.setTimeout(() => advance('boot-complete'), 3000);
 
     return () => {
       if (typeTimer !== null) window.clearTimeout(typeTimer);
@@ -151,11 +129,7 @@ export function QuantTerminal({ onDecline }: { onDecline: () => void }) {
       setInstallLines((current) => [...current, step.line]);
 
       if (index === INSTALL_STEPS.length - 1) {
-        timer = window.setTimeout(() => {
-          installedRef.current = true;
-          writeInstalled();
-          advance('install-complete');
-        }, 700);
+        timer = window.setTimeout(() => advance('install-complete'), 700);
         return;
       }
 

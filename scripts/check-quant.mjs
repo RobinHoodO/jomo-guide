@@ -10,6 +10,7 @@ assert.equal(nextQuantStage('install', 'install-complete'), 'prompt');
 assert.equal(nextQuantStage('prompt', 'decline'), 'declined');
 assert.equal(nextQuantStage('prompt', 'accept'), 'art');
 assert.equal(nextQuantStage('art', 'exit-art'), 'prompt');
-assert.equal(nextQuantStage('boot', 'installed-mount'), 'prompt');
+// The terminal never remembers an install: boot always leads to the question.
+assert.equal(nextQuantStage('boot', 'accept'), 'boot');
 
 console.log('quant self-check OK');

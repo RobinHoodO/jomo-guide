@@ -7,12 +7,10 @@ export type QuantEvent =
   | 'install-complete'
   | 'decline'
   | 'accept'
-  | 'exit-art'
-  | 'installed-mount';
+  | 'exit-art';
 
 export function nextQuantStage(stage: QuantStage, event: QuantEvent): QuantStage {
   if (stage === 'boot' && event === 'boot-complete') return 'question';
-  if (stage === 'boot' && event === 'installed-mount') return 'prompt';
   if (stage === 'question' && event === 'answer-wrong') return 'question';
   if (stage === 'question' && event === 'answer-right') return 'install';
   if (stage === 'install' && event === 'install-complete') return 'prompt';
