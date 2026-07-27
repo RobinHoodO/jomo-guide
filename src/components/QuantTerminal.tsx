@@ -221,6 +221,8 @@ export function QuantTerminal({ onDecline }: { onDecline: () => void }) {
                 Answer the terminal query
               </label>
               <span aria-hidden="true">&gt; </span>
+              {/* Never disabled: disabling mid-check dismisses the phone keyboard, which reads as
+                  "no second attempt". Double-submit is guarded in submitAnswer instead. */}
               <input
                 ref={inputRef}
                 id="quant-answer"
@@ -229,7 +231,6 @@ export function QuantTerminal({ onDecline }: { onDecline: () => void }) {
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck="false"
-                disabled={checkingAnswer}
               />
               <span className="quant-cursor" aria-hidden="true" />
             </form>

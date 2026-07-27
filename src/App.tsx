@@ -210,6 +210,7 @@ export default function App() {
           <>
             <UpdateBanner />
             <div className="quant-shell">
+              <QuantTerminal onDecline={() => dismissGridExperience('quant-terminal')} />
               <MapTab
                 selectedGrid={selectedGrid}
                 onSelectGrid={selectGrid}
@@ -220,7 +221,6 @@ export default function App() {
                 onOpenMissions={() => setTab('missions')}
                 onOpenMission={selectMission}
               />
-              <QuantTerminal onDecline={() => dismissGridExperience('quant-terminal')} />
             </div>
           </>
         ) : (

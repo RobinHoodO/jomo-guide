@@ -408,8 +408,12 @@ main[data-quant='true'] ::selection {
 }
 
 .quant-terminal {
-  margin-top: 1.5rem;
-  min-height: 17rem;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+  /* The terminal owns the screen; the map waits below the fold. dvh tracks the collapsing URL bar. */
+  min-height: 74vh;
+  min-height: 74dvh;
   padding: 1rem;
   overflow: hidden;
   color: #33ff66;
@@ -422,7 +426,8 @@ main[data-quant='true'] ::selection {
 }
 
 .quant-terminal-output {
-  max-height: 21rem;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-color: #33ff66 #020704;
 }
