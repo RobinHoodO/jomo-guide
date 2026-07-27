@@ -83,7 +83,7 @@ export function InstallBanner({ onOpenInfo }: InstallBannerProps) {
       </button>
     );
   } else if (canInstall) {
-    message = 'Install JOMO Guide for offline festival access.';
+    message = 'Install JOMO Guide for offline festival access. Best on Wi-Fi before arriving.';
     action = (
       <button
         type="button"
@@ -96,7 +96,7 @@ export function InstallBanner({ onOpenInfo }: InstallBannerProps) {
   } else if (isIosSafari()) {
     message = (
       <>
-        Install for offline use: Share → Add to Home Screen.{' '}
+        Install for offline use: Share → Add to Home Screen. Best on Wi-Fi before arriving.{' '}
         <button
           type="button"
           className="inline-flex min-h-10 items-center underline decoration-pink underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream/60"

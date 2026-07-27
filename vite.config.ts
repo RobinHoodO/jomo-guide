@@ -15,7 +15,7 @@ const config = defineConfig({
     tailwindcss() as any,
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['events.json', 'map-official.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
+      includeAssets: ['map-official.webp', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
       manifest: {
         name: 'Jomo Guide',
         short_name: 'Jomo Guide',
@@ -47,7 +47,7 @@ const config = defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,json,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,woff2}'],
         cleanupOutdatedCaches: true
       },
       devOptions: {

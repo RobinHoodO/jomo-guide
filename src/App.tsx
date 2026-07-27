@@ -13,6 +13,7 @@ import { useFavorites } from './hooks/useFavorites';
 import { EVENTS, parseGridCode } from './lib/events';
 import { clearEventParam, readEventIdFromUrl } from './lib/deeplink';
 import { initInstall } from './lib/install';
+import { canSpendBandwidth } from './lib/network';
 import { flushUsage, recordOpen } from './lib/usage';
 
 type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info';
@@ -53,6 +54,7 @@ export default function App() {
   const [sharedEvent, setSharedEvent] = useState<SharedEvent | null>(null);
   const toastTimer = useRef<number | null>(null);
   const deepLinkHighlightTimer = useRef<number | null>(null);
+  const onlineFlushTimer = useRef<number | null>(null);
   const hasRecordedOpen = useRef(false);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
@@ -64,13 +66,23 @@ export default function App() {
       hasRecordedOpen.current = true;
     }
 
-    const onOnline = () => flushUsage();
+    const onOnline = () => {
+      if (onlineFlushTimer.current !== null) return;
+
+      onlineFlushTimer.current = window.setTimeout(() => {
+        onlineFlushTimer.current = null;
+        flushUsage();
+      }, 60 * 1000);
+    };
     window.addEventListener('online', onOnline);
 
     return () => {
       window.removeEventListener('online', onOnline);
       if (toastTimer.current !== null) {
         window.clearTimeout(toastTimer.current);
+      }
+      if (onlineFlushTimer.current !== null) {
+        window.clearTimeout(onlineFlushTimer.current);
       }
     };
   }, []);
@@ -138,7 +150,7 @@ export default function App() {
 
   return (
     <>
-      <Analytics />
+      {canSpendBandwidth() ? <Analytics /> : null}
       <main className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}>
       <InstallBanner onOpenInfo={() => setTab('info')} />
       <UpdateBanner />

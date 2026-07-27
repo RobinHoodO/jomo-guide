@@ -364,7 +364,7 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
 
           {showMapArt ? (
             <image
-              href="/map-official.png"
+              href="/map-official.webp"
               x={LEFT_AXIS + ART_OFFSET_X}
               y={TOP_AXIS + ART_OFFSET_Y}
               width={GRID_WIDTH * ART_SCALE_X}
@@ -375,33 +375,32 @@ export function MapTab({ selectedGrid, onSelectGrid, onSelectCamp, isFavorite, t
             />
           ) : null}
 
-          {!showMapArt ? (
-            <>
-              {MAP_COLUMNS.map((column, index) => (
-                <text
-                  key={column}
-                  x={LEFT_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2}
-                  y="12"
-                  textAnchor="middle"
-                  className="map-axis"
-                >
-                  {column}
-                </text>
-              ))}
+          {/* Axis labels always render: grid refs like "N19" are how people tell
+              each other where things are, so they must be readable over the
+              artwork too, not only when it is switched off. */}
+          {MAP_COLUMNS.map((column, index) => (
+            <text
+              key={column}
+              x={LEFT_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2}
+              y="12"
+              textAnchor="middle"
+              className="map-axis"
+            >
+              {column}
+            </text>
+          ))}
 
-              {MAP_ROWS.map((row, index) => (
-                <text
-                  key={row}
-                  x="17"
-                  y={TOP_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3}
-                  textAnchor="end"
-                  className="map-axis"
-                >
-                  {row}
-                </text>
-              ))}
-            </>
-          ) : null}
+          {MAP_ROWS.map((row, index) => (
+            <text
+              key={row}
+              x="17"
+              y={TOP_AXIS + index * (CELL_SIZE + GAP) + CELL_SIZE / 2 + 3}
+              textAnchor="end"
+              className="map-axis"
+            >
+              {row}
+            </text>
+          ))}
 
           {MAP_CELLS.map((cell) => {
             const columnIndex = MAP_COLUMNS.indexOf(cell.column);

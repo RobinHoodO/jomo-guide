@@ -7,7 +7,7 @@ export function UpdateBanner() {
 
   return (
     <div className="update-banner" role="status">
-      <span>✨ New version available</span>
+      <span>✨ New version available<br />New guide available (~3 MB download)</span>
       <button type="button" onClick={applyUpdate} aria-label="Update JOMO Guide to the newest version">
         Update ▸
       </button>

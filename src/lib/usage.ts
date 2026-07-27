@@ -1,4 +1,5 @@
 import { track } from '@vercel/analytics';
+import { canSpendBandwidth } from './network';
 
 type UsageEntry = {
   opens: number;
@@ -10,6 +11,7 @@ type Usage = Record<string, UsageEntry>;
 
 const STORAGE_KEY = 'jomo26:usage';
 const MAX_AGE_DAYS = 30;
+let isFlushing = false;
 
 function dateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -76,23 +78,30 @@ export function recordOpen() {
 }
 
 export function flushUsage() {
-  if (!navigator.onLine) return;
+  if (!canSpendBandwidth() || isFlushing) return;
 
-  const today = dateKey();
-  const usage = readUsage(today);
-  let changed = false;
+  isFlushing = true;
+  try {
+    const today = dateKey();
+    const usage = readUsage(today);
+    const unsentEntries = Object.entries(usage).filter(([day, entry]) => day !== today && !entry.sent);
+    if (unsentEntries.length === 0) return;
 
-  for (const [day, entry] of Object.entries(usage)) {
-    if (day === today || entry.sent) continue;
+    const days = unsentEntries
+      .map(([day, entry]) => `${day}:${entry.opens}:${entry.offline}`)
+      .join(',');
 
     try {
-      track('day-usage', { day, opens: entry.opens, offline: entry.offline });
-      entry.sent = true;
-      changed = true;
-    } catch {
-      // Keep the entry unsent so a later connection can retry it.
-    }
-  }
+      track('usage-batch', { days });
 
-  if (changed) saveUsage(usage);
+      for (const [, entry] of unsentEntries) {
+        entry.sent = true;
+      }
+      saveUsage(usage);
+    } catch {
+      // Keep the entries unsent so a later connection can retry the batch.
+    }
+  } finally {
+    isFlushing = false;
+  }
 }

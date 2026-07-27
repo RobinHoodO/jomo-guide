@@ -1,15 +1,19 @@
 import { registerSW } from 'virtual:pwa-register';
+import { canSpendBandwidth } from './network';
 
 type Snapshot = { needRefresh: boolean };
 type UpdateSW = (reloadPage?: boolean) => Promise<void>;
 
 const listeners = new Set<() => void>();
+const LAST_UPDATE_CHECK_KEY = 'jomo26:last-update-check';
+const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 
 let snapshot: Snapshot = { needRefresh: false };
 let registration: ServiceWorkerRegistration | undefined;
 let updateSW: UpdateSW | undefined;
 let initialized = false;
 let cleanupRegistration: (() => void) | undefined;
+let lastUpdateCheck = 0;
 
 function setNeedRefresh(needRefresh: boolean) {
   if (snapshot.needRefresh === needRefresh) return;
@@ -19,7 +23,24 @@ function setNeedRefresh(needRefresh: boolean) {
 }
 
 async function updateRegistration() {
-  if (!registration || !navigator.onLine) return;
+  if (!registration || !canSpendBandwidth()) return;
+
+  const now = Date.now();
+  try {
+    const stored = Number(localStorage.getItem(LAST_UPDATE_CHECK_KEY));
+    if (Number.isFinite(stored)) lastUpdateCheck = Math.max(lastUpdateCheck, stored);
+  } catch {
+    // Safari private browsing can reject localStorage reads.
+  }
+
+  if (now - lastUpdateCheck < UPDATE_CHECK_INTERVAL) return;
+
+  lastUpdateCheck = now;
+  try {
+    localStorage.setItem(LAST_UPDATE_CHECK_KEY, String(now));
+  } catch {
+    // Keep the in-memory throttle when persistent storage is unavailable.
+  }
 
   try {
     await registration.update();
@@ -91,7 +112,7 @@ export function applyUpdate() {
 }
 
 export async function checkForUpdate() {
-  if (!registration || !navigator.onLine) return false;
+  if (!registration || !canSpendBandwidth()) return false;
 
   try {
     await registration.update();

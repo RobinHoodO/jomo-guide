@@ -715,6 +715,10 @@ main.is-plain-bg .ambient-blobs {
 .map-axis {
   font: 800 10px var(--display-font);
   fill: var(--indigo);
+  /* Halo keeps grid refs readable on top of the official map artwork. */
+  stroke: rgba(242, 235, 217, 0.82);
+  stroke-width: 2.4px;
+  paint-order: stroke;
 }
 
 .map-count {
