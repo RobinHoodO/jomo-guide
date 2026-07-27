@@ -258,12 +258,13 @@ export const MAP_NEIGHBORHOODS = [...OFFICIAL_MAP_NEIGHBORHOODS, ELSEWHERE_NEIGH
 export function getNow() {
   const override = new URLSearchParams(window.location.search).get('now');
   const parsed = override ? new Date(override) : new Date();
-  if (!Number.isNaN(parsed.getTime()) && isDuringProgram(parsed)) return parsed;
-  return new Date('2026-07-18T12:00:00');
-}
-
-export function isDuringProgram(date: Date) {
-  return date >= new Date('2026-07-18T00:00:00') && date <= new Date('2026-07-28T00:00:00');
+  // Only clamp BEFORE the program (preview day 1). From day 1 on, the real clock stands —
+  // once the last event ends, everything is honestly past. The old two-sided clamp snapped
+  // back to day 1 the night the program ended and resurrected the whole board.
+  if (Number.isNaN(parsed.getTime()) || parsed < new Date('2026-07-18T00:00:00')) {
+    return new Date('2026-07-18T12:00:00');
+  }
+  return parsed;
 }
 
 export function formatTime(event: EventItem) {
