@@ -1,4 +1,4 @@
-import type { CapacityType, CreateMissionInput, MissionVisibility, QuestReveal, RewardKind, UpdateMissionInput } from './missions';
+import type { CapacityType, CreateMissionInput, MissionVisibility, QuestReveal, RewardKind, UpdateMissionInput, VerificationMode } from './missions';
 
 export type NormalizedCreateInput = {
   title: string;
@@ -9,7 +9,9 @@ export type NormalizedCreateInput = {
   visibility: MissionVisibility;
   expires_at: string | null;
   requires_presence: boolean;
-  requires_verification: boolean;
+  verification_mode: VerificationMode;
+  submission_prompt: string | null;
+  expected_answer: string | null;
   reward_kind: RewardKind | null;
   reward_threshold: number | null;
   reward_body: string | null;
@@ -35,6 +37,10 @@ export function isRewardKind(value: unknown): value is RewardKind {
 
 export function isQuestReveal(value: unknown): value is QuestReveal {
   return value === 'hint' || value === 'length';
+}
+
+export function isVerificationMode(value: unknown): value is VerificationMode {
+  return value === 'none' || value === 'note' || value === 'prompt' || value === 'answer';
 }
 
 export function validLimitedCapacity(value: unknown): value is number {
@@ -66,6 +72,49 @@ function normalizedGridRef(value: string | null | undefined) {
 function validateBoolean(value: unknown, message: string): Validation<boolean> {
   if (typeof value !== 'boolean') return { data: null, error: message };
   return { data: value, error: null };
+}
+
+function normalizeText(value: unknown, message: string): Validation<string | null> {
+  if (value === null || value === undefined) return { data: null, error: null };
+  if (typeof value !== 'string') return { data: null, error: message };
+
+  return { data: value.trim() || null, error: null };
+}
+
+export function normalizeAnswer(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function normalizeVerification(
+  modeValue: unknown,
+  promptValue: unknown,
+  answerValue: unknown
+): Validation<Pick<NormalizedCreateInput, 'verification_mode' | 'submission_prompt' | 'expected_answer'>> {
+  const verification_mode = modeValue ?? 'none';
+  if (!isVerificationMode(verification_mode)) {
+    return { data: null, error: 'Choose how this mission completes.' };
+  }
+
+  const prompt = normalizeText(promptValue, 'The question must be text.');
+  if (prompt.error !== null) return { data: null, error: prompt.error };
+  if ((verification_mode === 'prompt' || verification_mode === 'answer') && !prompt.data) {
+    return { data: null, error: 'A question is required when people answer to finish.' };
+  }
+
+  const answer = normalizeText(answerValue, 'The expected answer must be text.');
+  if (answer.error !== null) return { data: null, error: answer.error };
+  if (verification_mode === 'answer' && !answer.data) {
+    return { data: null, error: 'An expected answer is required when the app confirms it.' };
+  }
+
+  return {
+    data: {
+      verification_mode,
+      submission_prompt: verification_mode === 'prompt' || verification_mode === 'answer' ? prompt.data : null,
+      expected_answer: verification_mode === 'answer' && answer.data ? normalizeAnswer(answer.data) : null
+    },
+    error: null
+  };
 }
 
 function validateExpiry(value: string | null | undefined, now: number): Validation<string | null> {
@@ -188,8 +237,7 @@ export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()
   const presence = validateBoolean(requiresPresence, 'Presence requirement must be true or false.');
   if (presence.error !== null) return { data: null, error: presence.error };
 
-  const requiresVerification = input.requires_verification ?? false;
-  const verification = validateBoolean(requiresVerification, 'Verification requirement must be true or false.');
+  const verification = normalizeVerification(input.verification_mode, input.submission_prompt, input.expected_answer);
   if (verification.error !== null) return { data: null, error: verification.error };
 
   let capacity: number | null;
@@ -232,7 +280,7 @@ export function normalizeCreateInput(input: CreateMissionInput, now = Date.now()
       visibility: input.visibility ?? 'public',
       expires_at: expiresAt.data,
       requires_presence: presence.data,
-      requires_verification: verification.data,
+      ...verification.data,
       ...reward.data,
       ...quest.data
     },
@@ -280,10 +328,22 @@ export function normalizeUpdateInput(input: UpdateMissionInput, now = Date.now()
     patch.requires_presence = presence.data;
   }
 
-  if ('requires_verification' in input) {
-    const verification = validateBoolean(input.requires_verification, 'Verification requirement must be true or false.');
+  if ('verification_mode' in input) {
+    const verification = normalizeVerification(input.verification_mode, input.submission_prompt, input.expected_answer);
     if (verification.error !== null) return { data: null, error: verification.error };
-    patch.requires_verification = verification.data;
+    Object.assign(patch, verification.data);
+  } else {
+    if ('submission_prompt' in input) {
+      const prompt = normalizeText(input.submission_prompt, 'The question must be text.');
+      if (prompt.error !== null) return { data: null, error: prompt.error };
+      patch.submission_prompt = prompt.data;
+    }
+
+    if ('expected_answer' in input) {
+      const answer = normalizeText(input.expected_answer, 'The expected answer must be text.');
+      if (answer.error !== null) return { data: null, error: answer.error };
+      patch.expected_answer = answer.data ? normalizeAnswer(answer.data) : null;
+    }
   }
 
   if ('reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input) {

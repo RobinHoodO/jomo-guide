@@ -14,7 +14,8 @@ export type OutboxPayload =
   | { missionId: string }
   | { claimId: string; doneAt: string }
   | { claimId: string; releasedAt: string }
-  | { claimId: string };
+  | { claimId: string }
+  | { claimId: string; text: string };
 
 export type OutboxEntry = {
   id: string;
@@ -107,6 +108,32 @@ function hasRewardFields(input: UpdateMissionInput) {
   return 'reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input;
 }
 
+function hasAnswerFields(input: UpdateMissionInput) {
+  return 'verification_mode' in input || 'expected_answer' in input;
+}
+
+async function saveMissionAnswer(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  missionId: string,
+  verificationMode: CreateMissionInput['verification_mode'] | UpdateMissionInput['verification_mode'],
+  expectedAnswer: string | null | undefined
+) {
+  if (verificationMode === 'answer' || expectedAnswer) {
+    const { error } = await supabase.from('mission_answers').upsert(
+      { mission_id: missionId, answer_norm: expectedAnswer ?? '' },
+      { onConflict: 'mission_id' }
+    );
+    return error?.message ?? null;
+  }
+
+  if (verificationMode !== undefined || expectedAnswer === null) {
+    const { error } = await supabase.from('mission_answers').delete().eq('mission_id', missionId);
+    return error?.message ?? null;
+  }
+
+  return null;
+}
+
 export function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -137,7 +164,7 @@ async function syncEntry(entry: OutboxEntry): Promise<string | null> {
       case 'create': {
         const payload = entry.payload as Extract<OutboxPayload, { input: CreateMissionInput }>;
         const { input } = payload;
-        const { reward_body, reward_closer_body, ...mission } = input;
+        const { reward_body, reward_closer_body, expected_answer, ...mission } = input;
         let missionId = payload.missionId;
 
         if (!missionId) {
@@ -152,39 +179,53 @@ async function syncEntry(entry: OutboxEntry): Promise<string | null> {
           entry.payload = { input, missionId };
         }
 
-        if (!mission.reward_kind) return null;
+        if (mission.verification_mode === 'answer') {
+          const answerError = await saveMissionAnswer(supabase, missionId, mission.verification_mode, expected_answer);
+          if (answerError) return answerError;
+        }
 
-        const { error } = await supabase.from('mission_rewards').upsert(
-          {
-            mission_id: missionId,
-            body: reward_body ?? '',
-            closer_body: reward_closer_body ?? null
-          },
-          { onConflict: 'mission_id' }
-        );
-        return error ? error.message : null;
+        if (mission.reward_kind) {
+          const { error } = await supabase.from('mission_rewards').upsert(
+            {
+              mission_id: missionId,
+              body: reward_body ?? '',
+              closer_body: reward_closer_body ?? null
+            },
+            { onConflict: 'mission_id' }
+          );
+          if (error) return error.message;
+        }
+
+        return null;
       }
       case 'update': {
         const { id, patch } = entry.payload as Extract<OutboxPayload, { patch: UpdateMissionInput }>;
-        const { reward_body, reward_closer_body, ...mission } = patch;
+        const { reward_body, reward_closer_body, expected_answer, ...mission } = patch;
         const { error } = await supabase.from('missions').update(mission).eq('id', id);
         if (error) return error.message;
-        if (!hasRewardFields(patch)) return null;
-
-        if (!patch.reward_kind) {
-          const { error } = await supabase.from('mission_rewards').delete().eq('mission_id', id);
-          return error ? error.message : null;
+        if (hasAnswerFields(patch)) {
+          const answerError = await saveMissionAnswer(supabase, id, patch.verification_mode, expected_answer);
+          if (answerError) return answerError;
         }
 
-        const { error: rewardError } = await supabase.from('mission_rewards').upsert(
-          {
-            mission_id: id,
-            body: reward_body ?? '',
-            closer_body: reward_closer_body ?? null
-          },
-          { onConflict: 'mission_id' }
-        );
-        return rewardError ? rewardError.message : null;
+        if (hasRewardFields(patch)) {
+          if (!patch.reward_kind) {
+            const { error } = await supabase.from('mission_rewards').delete().eq('mission_id', id);
+            if (error) return error.message;
+          } else {
+            const { error: rewardError } = await supabase.from('mission_rewards').upsert(
+              {
+                mission_id: id,
+                body: reward_body ?? '',
+                closer_body: reward_closer_body ?? null
+              },
+              { onConflict: 'mission_id' }
+            );
+            if (rewardError) return rewardError.message;
+          }
+        }
+
+        return null;
       }
       case 'delete': {
         const { id } = entry.payload as Extract<OutboxPayload, { id: string }>;
@@ -213,11 +254,8 @@ async function syncEntry(entry: OutboxEntry): Promise<string | null> {
         return error ? error.message : null;
       }
       case 'submit': {
-        const { claimId } = entry.payload as Extract<OutboxPayload, { claimId: string }>;
-        const { error } = await supabase
-          .from('mission_claims')
-          .update({ state: 'submitted', done_at: null })
-          .eq('id', claimId);
+        const { claimId, text } = entry.payload as Extract<OutboxPayload, { claimId: string; text: string }>;
+        const { error } = await supabase.rpc('submit_claim', { p_claim_id: claimId, p_text: typeof text === 'string' ? text : '' });
         return error ? error.message : null;
       }
       case 'approve': {

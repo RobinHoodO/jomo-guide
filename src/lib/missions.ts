@@ -10,6 +10,7 @@ export type MissionVisibility = 'public' | 'hidden';
 export type ClaimState = 'claimed' | 'done' | 'released' | 'submitted';
 export type RewardKind = 'content' | 'clue' | 'roster' | 'handover';
 export type QuestReveal = 'hint' | 'length';
+export type VerificationMode = 'none' | 'note' | 'prompt' | 'answer';
 
 export type Profile = {
   id: string;
@@ -26,7 +27,8 @@ export type Mission = {
   capacity: number | null;
   grid_ref: string | null;
   requires_presence: boolean;
-  requires_verification: boolean;
+  verification_mode: VerificationMode;
+  submission_prompt: string | null;
   visibility: MissionVisibility;
   is_closed: boolean;
   expires_at: string | null;
@@ -47,6 +49,8 @@ export type Claim = {
   claimed_at: string;
   done_at: string | null;
   released_at: string | null;
+  submission_note: string | null;
+  submitted_at: string | null;
 };
 
 export type MissionWithClaims = Mission & {
@@ -63,7 +67,9 @@ export type CreateMissionInput = {
   capacity?: number | null;
   grid_ref?: string | null;
   requires_presence?: boolean;
-  requires_verification?: boolean;
+  verification_mode?: VerificationMode;
+  submission_prompt?: string | null;
+  expected_answer?: string | null;
   visibility?: MissionVisibility;
   expires_at?: string | null;
   reward_kind?: RewardKind | null;
@@ -84,7 +90,8 @@ export type UpdateMissionInput = Partial<
     | 'capacity'
     | 'grid_ref'
     | 'requires_presence'
-    | 'requires_verification'
+    | 'verification_mode'
+    | 'submission_prompt'
     | 'visibility'
     | 'is_closed'
     | 'expires_at'
@@ -97,6 +104,7 @@ export type UpdateMissionInput = Partial<
 > & {
   reward_body?: string | null;
   reward_closer_body?: string | null;
+  expected_answer?: string | null;
 };
 
 export type MissionResult<T> = {
@@ -126,6 +134,16 @@ export type MissionReward = {
 export type MissionRewardPayload = {
   body: string;
   closer_body: string | null;
+};
+
+export type MissionExpectedAnswer = {
+  answer_norm: string;
+};
+
+export type SubmitClaimResult = {
+  accepted: boolean;
+  auto_approved: boolean;
+  claim: Claim | null;
 };
 
 export type QuestShape = {
@@ -224,6 +242,10 @@ function hasRewardFields(input: UpdateMissionInput) {
   return 'reward_kind' in input || 'reward_threshold' in input || 'reward_body' in input || 'reward_closer_body' in input;
 }
 
+function hasAnswerFields(input: UpdateMissionInput) {
+  return 'verification_mode' in input || 'expected_answer' in input;
+}
+
 async function saveMissionReward(supabase: SupabaseClient, missionId: string, reward: RewardSaveInput) {
   if (!reward.reward_kind) {
     const { error } = await supabase.from('mission_rewards').delete().eq('mission_id', missionId);
@@ -239,6 +261,28 @@ async function saveMissionReward(supabase: SupabaseClient, missionId: string, re
     { onConflict: 'mission_id' }
   );
   return error?.message ?? null;
+}
+
+async function saveMissionAnswer(
+  supabase: SupabaseClient,
+  missionId: string,
+  verificationMode: VerificationMode | undefined,
+  expectedAnswer: string | null | undefined
+) {
+  if (verificationMode === 'answer' || expectedAnswer) {
+    const { error } = await supabase.from('mission_answers').upsert(
+      { mission_id: missionId, answer_norm: expectedAnswer ?? '' },
+      { onConflict: 'mission_id' }
+    );
+    return error?.message ?? null;
+  }
+
+  if (verificationMode !== undefined || expectedAnswer === null) {
+    const { error } = await supabase.from('mission_answers').delete().eq('mission_id', missionId);
+    return error?.message ?? null;
+  }
+
+  return null;
 }
 
 function queued<T>(kind: OutboxKind, payload: OutboxPayload): MissionResult<T> {
@@ -300,7 +344,7 @@ export async function createMission(input: CreateMissionInput): Promise<MissionR
   const supabase = getSupabase();
   if (!userId || !supabase) return queued<Mission>('create', payload);
 
-  const { reward_body, reward_closer_body, ...mission } = normalized.data;
+  const { reward_body, reward_closer_body, expected_answer, ...mission } = normalized.data;
   let data: Mission;
   try {
     const { data: missionData, error } = await supabase
@@ -313,6 +357,23 @@ export async function createMission(input: CreateMissionInput): Promise<MissionR
     data = missionData as Mission;
   } catch (error) {
     return isConnectivityError(error) ? queued<Mission>('create', payload) : fail<Mission>(errorMessage(error));
+  }
+
+  if (mission.verification_mode === 'answer') {
+    let answerError: string | null;
+    try {
+      answerError = await saveMissionAnswer(supabase, data.id, mission.verification_mode, expected_answer);
+    } catch {
+      answerError = 'The expected answer could not be saved.';
+    }
+    if (answerError) {
+      return {
+        data,
+        error: 'Your mission was created, but its expected answer did not save. Edit it to try again.',
+        stale: false,
+        queued: false
+      };
+    }
   }
 
   if (mission.reward_kind) {
@@ -352,7 +413,7 @@ export async function updateMission(id: string, patch: UpdateMissionInput): Prom
   const supabase = getSupabase();
   if (!userId || !supabase) return queued<Mission>('update', payload);
 
-  const { reward_body, reward_closer_body, ...mission } = normalized.data;
+  const { reward_body, reward_closer_body, expected_answer, ...mission } = normalized.data;
   let data: Mission;
   try {
     const { data: missionData, error } = await supabase.from('missions').update(mission).eq('id', id).select().single();
@@ -360,6 +421,23 @@ export async function updateMission(id: string, patch: UpdateMissionInput): Prom
     data = missionData as Mission;
   } catch (error) {
     return isConnectivityError(error) ? queued<Mission>('update', payload) : fail<Mission>(errorMessage(error));
+  }
+
+  if (hasAnswerFields(normalized.data)) {
+    let answerError: string | null;
+    try {
+      answerError = await saveMissionAnswer(supabase, id, normalized.data.verification_mode, expected_answer);
+    } catch {
+      answerError = 'The expected answer could not be saved.';
+    }
+    if (answerError) {
+      return {
+        data,
+        error: 'Your mission was updated, but its expected answer did not save. Edit it to try again.',
+        stale: false,
+        queued: false
+      };
+    }
   }
 
   if (hasRewardFields(normalized.data)) {
@@ -421,6 +499,24 @@ export async function getMissionRewardPayload(missionId: string): Promise<Missio
   } catch (error) {
     return fail<MissionRewardPayload>(
       isConnectivityError(error) ? 'The channel is quiet from here. Try again when you have signal.' : errorMessage(error, 'That reward could not be loaded right now.')
+    );
+  }
+}
+
+export async function getMissionExpectedAnswer(missionId: string): Promise<MissionResult<MissionExpectedAnswer>> {
+  if (!validId(missionId)) return fail<MissionExpectedAnswer>('A mission id is required.');
+  if (!canSpendBandwidth()) return fail<MissionExpectedAnswer>('The channel is quiet from here. Try again when you have signal.');
+
+  const supabase = getSupabase();
+  if (!supabase) return fail<MissionExpectedAnswer>('The channel is quiet from here. Try again when you have signal.');
+
+  try {
+    const { data, error } = await supabase.from('mission_answers').select('answer_norm').eq('mission_id', missionId).maybeSingle();
+    if (error) throw error;
+    return result({ answer_norm: typeof data?.answer_norm === 'string' ? data.answer_norm : '' });
+  } catch (error) {
+    return fail<MissionExpectedAnswer>(
+      isConnectivityError(error) ? 'The channel is quiet from here. Try again when you have signal.' : errorMessage(error, 'That expected answer could not be loaded right now.')
     );
   }
 }
@@ -495,13 +591,13 @@ export async function claimMission(id: string, capacityType: CapacityType): Prom
 
 async function changeClaimState(
   claimId: string,
-  kind: 'done' | 'release' | 'submit' | 'approve' | 'reject'
+  kind: 'release' | 'approve' | 'reject'
 ): Promise<MissionResult<Claim>> {
   if (!validId(claimId)) return fail<Claim>('A claim id is required.');
 
   const timestamp = new Date().toISOString();
   const payload: OutboxPayload =
-    kind === 'done' || kind === 'approve'
+    kind === 'approve'
       ? { claimId, doneAt: timestamp }
       : kind === 'release'
         ? { claimId, releasedAt: timestamp }
@@ -514,13 +610,11 @@ async function changeClaimState(
   if (!userId || !supabase) return queued<Claim>(kind, payload);
 
   const update =
-    kind === 'done' || kind === 'approve'
+    kind === 'approve'
       ? { state: 'done', done_at: timestamp }
       : kind === 'release'
         ? { state: 'released', released_at: timestamp }
-        : kind === 'submit'
-          ? { state: 'submitted', done_at: null }
-          : { state: 'claimed', done_at: null };
+        : { state: 'claimed', done_at: null };
 
   try {
     const { data, error } = await supabase.from('mission_claims').update(update).eq('id', claimId).select().single();
@@ -531,16 +625,38 @@ async function changeClaimState(
   }
 }
 
-export function markClaimDone(claimId: string) {
-  return changeClaimState(claimId, 'done');
-}
-
 export function releaseClaim(claimId: string) {
   return changeClaimState(claimId, 'release');
 }
 
-export function submitClaim(claimId: string) {
-  return changeClaimState(claimId, 'submit');
+export async function submitClaim(
+  claimId: string,
+  text: string,
+  verificationMode: VerificationMode
+): Promise<MissionResult<SubmitClaimResult>> {
+  if (!validId(claimId)) return fail<SubmitClaimResult>('A claim id is required.');
+
+  const payload: OutboxPayload = { claimId, text };
+  if (!canSpendBandwidth()) {
+    if (verificationMode === 'answer') return fail<SubmitClaimResult>('You need signal to check that answer.');
+    return queued<SubmitClaimResult>('submit', payload);
+  }
+
+  const userId = await ensureSignedIn();
+  const supabase = getSupabase();
+  if (!userId || !supabase) {
+    if (verificationMode === 'answer') return fail<SubmitClaimResult>('You need signal to check that answer.');
+    return queued<SubmitClaimResult>('submit', payload);
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('submit_claim', { p_claim_id: claimId, p_text: text });
+    if (error) throw error;
+    return result(data as SubmitClaimResult);
+  } catch (error) {
+    if (verificationMode !== 'answer' && isConnectivityError(error)) return queued<SubmitClaimResult>('submit', payload);
+    return fail<SubmitClaimResult>(errorMessage(error));
+  }
 }
 
 export function approveClaim(claimId: string) {

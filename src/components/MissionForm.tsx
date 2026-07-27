@@ -1,5 +1,13 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
-import { getMissionRewardPayload, type CapacityType, type CreateMissionInput, type Mission, type RewardKind } from '../lib/missions';
+import {
+  getMissionExpectedAnswer,
+  getMissionRewardPayload,
+  type CapacityType,
+  type CreateMissionInput,
+  type Mission,
+  type RewardKind,
+  type VerificationMode
+} from '../lib/missions';
 
 type MissionFormProps = {
   mission: Mission | null;
@@ -9,7 +17,7 @@ type MissionFormProps = {
   onDelete?: () => Promise<string | null>;
 };
 
-type FieldName = 'title' | 'description' | 'capacity' | 'presence' | 'expires' | 'reward' | 'form';
+type FieldName = 'title' | 'description' | 'capacity' | 'presence' | 'expires' | 'submissionPrompt' | 'expectedAnswer' | 'reward' | 'form';
 
 const REWARD_KINDS: Array<{ value: RewardKind; label: string; description: string }> = [
   { value: 'content', label: 'A message that appears', description: 'written now, revealed to everyone who finished' },
@@ -41,6 +49,8 @@ function fieldForError(message: string): FieldName {
   if (/expiry/i.test(message)) return 'expires';
   if (/here-only|grid square/i.test(message)) return 'presence';
   if (/capacity|limited|exclusive|open missions/i.test(message)) return 'capacity';
+  if (/expected answer/i.test(message)) return 'expectedAnswer';
+  if (/question/i.test(message)) return 'submissionPrompt';
   if (/reward|unlocks|finishers|what unlocks|closer/i.test(message)) return 'reward';
   return 'form';
 }
@@ -54,7 +64,11 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
   );
   const [gridRef, setGridRef] = useState(mission?.grid_ref ?? '');
   const [requiresPresence, setRequiresPresence] = useState(mission?.requires_presence ?? false);
-  const [requiresVerification, setRequiresVerification] = useState(mission?.requires_verification ?? false);
+  const [verificationMode, setVerificationMode] = useState<VerificationMode>(mission?.verification_mode ?? 'none');
+  const [submissionPrompt, setSubmissionPrompt] = useState(mission?.submission_prompt ?? '');
+  const [expectedAnswer, setExpectedAnswer] = useState('');
+  const [loadingExpectedAnswer, setLoadingExpectedAnswer] = useState(mission?.verification_mode === 'answer');
+  const [expectedAnswerReady, setExpectedAnswerReady] = useState(mission?.verification_mode !== 'answer');
   const [expiresAt, setExpiresAt] = useState(localDateTime(mission?.expires_at ?? null));
   const [hasReward, setHasReward] = useState(Boolean(mission?.reward_kind));
   const [rewardKind, setRewardKind] = useState<RewardKind>(mission?.reward_kind ?? 'content');
@@ -111,6 +125,34 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
     };
   }, [mission?.id, mission?.reward_kind]);
 
+  useEffect(() => {
+    if (mission?.verification_mode !== 'answer') {
+      setLoadingExpectedAnswer(false);
+      setExpectedAnswerReady(true);
+      return;
+    }
+
+    let active = true;
+    setLoadingExpectedAnswer(true);
+    setExpectedAnswerReady(false);
+    void getMissionExpectedAnswer(mission.id).then((result) => {
+      if (!active) return;
+
+      setLoadingExpectedAnswer(false);
+      if (result.error) {
+        setErrors((current) => ({ ...current, expectedAnswer: result.error! }));
+        return;
+      }
+
+      setExpectedAnswer(result.data?.answer_norm ?? '');
+      setExpectedAnswerReady(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [mission?.id, mission?.verification_mode]);
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -123,7 +165,9 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
       capacity: capacityType === 'limited' ? Number(capacity) : capacityType === 'exclusive' ? 1 : null,
       grid_ref: gridRef.trim() || null,
       requires_presence: requiresPresence,
-      requires_verification: requiresVerification,
+      verification_mode: verificationMode,
+      submission_prompt: verificationMode === 'prompt' || verificationMode === 'answer' ? submissionPrompt : null,
+      expected_answer: verificationMode === 'answer' ? expectedAnswer : null,
       expires_at: toIso(expiresAt),
       reward_kind: hasReward ? rewardKind : null,
       reward_threshold: hasReward ? Number(rewardThreshold) : null,
@@ -314,15 +358,64 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
 
         <section className="space-y-3 border-t border-indigo-brand/15 pt-3">
           <p className="section-kicker text-pink">How it completes</p>
-          <label className="flex items-start gap-2 text-sm font-semibold text-indigo-brand">
-            <input
-              className="mt-0.5 size-4 accent-pink"
-              type="checkbox"
-              checked={requiresVerification}
-              onChange={(event) => setRequiresVerification(event.target.checked)}
-            />
-            I want to confirm it&apos;s done
+          <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-verification-mode">
+            Completion
+            <select
+              id="mission-verification-mode"
+              className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+              value={verificationMode}
+              onChange={(event) => {
+                setVerificationMode(event.target.value as VerificationMode);
+                clearError('submissionPrompt');
+                clearError('expectedAnswer');
+              }}
+            >
+              <option value="none">They mark it done</option>
+              <option value="note">They send a note, I confirm</option>
+              <option value="prompt">They answer my question, I confirm</option>
+              <option value="answer">They answer my question, the app confirms</option>
+            </select>
           </label>
+
+          {verificationMode === 'prompt' || verificationMode === 'answer' ? (
+            <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-submission-prompt">
+              Your question
+              <textarea
+                id="mission-submission-prompt"
+                className="mt-1 min-h-20 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 py-2 text-sm leading-5 text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                value={submissionPrompt}
+                onChange={(event) => {
+                  setSubmissionPrompt(event.target.value);
+                  clearError('submissionPrompt');
+                }}
+                required
+                aria-invalid={Boolean(errors.submissionPrompt)}
+                aria-describedby={errors.submissionPrompt ? 'mission-submission-prompt-error' : undefined}
+              />
+              {errors.submissionPrompt ? <span id="mission-submission-prompt-error" className="mt-1 block text-xs font-semibold text-pink">{errors.submissionPrompt}</span> : null}
+            </label>
+          ) : null}
+
+          {verificationMode === 'answer' ? (
+            <label className="block text-sm font-semibold text-indigo-brand" htmlFor="mission-expected-answer">
+              Expected answer
+              <input
+                id="mission-expected-answer"
+                className="mt-1 min-h-10 w-full rounded-xl border border-indigo-brand/20 bg-cream px-3 text-sm text-indigo-brand outline-none focus:border-pink focus:ring-2 focus:ring-pink/25"
+                value={expectedAnswer}
+                onChange={(event) => {
+                  setExpectedAnswer(event.target.value);
+                  clearError('expectedAnswer');
+                }}
+                required
+                disabled={loadingExpectedAnswer}
+                aria-invalid={Boolean(errors.expectedAnswer)}
+                aria-describedby={errors.expectedAnswer ? 'mission-expected-answer-error' : undefined}
+              />
+              <span className="mt-1 block text-xs font-normal text-[var(--muted-indigo)]">This can advance a quest step while you are asleep.</span>
+              {errors.expectedAnswer ? <span id="mission-expected-answer-error" className="mt-1 block text-xs font-semibold text-pink">{errors.expectedAnswer}</span> : null}
+            </label>
+          ) : null}
         </section>
 
         <section className="space-y-2 border-t border-indigo-brand/15 pt-3">
@@ -468,11 +561,12 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
           {!questLocked && capacityType === 'exclusive' && startsQuest ? (
             <p className="text-xs font-semibold text-pink">One person only means only that one person will ever see the rest of the chain.</p>
           ) : null}
-          {requiresVerification && isQuestStep ? (
+          {verificationMode !== 'none' && verificationMode !== 'answer' && isQuestStep ? (
             <p className="text-xs font-semibold text-pink">The next step stays locked until you approve, so the chain stalls if you are away.</p>
           ) : null}
 
           {loadingRewardPayload ? <p className="text-xs text-[var(--muted-indigo)]">Loading what you promised…</p> : null}
+          {loadingExpectedAnswer ? <p className="text-xs text-[var(--muted-indigo)]">Loading the expected answer…</p> : null}
           {errors.reward ? <p id="mission-reward-error" className="text-xs font-semibold text-pink">{errors.reward}</p> : null}
         </section>
 
@@ -482,7 +576,7 @@ export function MissionForm({ mission, quest, onClose, onSave, onDelete }: Missi
           <button
             type="submit"
             className="min-h-10 rounded-full bg-pink px-4 text-xs font-black text-cream transition-colors hover:bg-yellow hover:text-indigo-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35 disabled:opacity-50"
-            disabled={saving || loadingRewardPayload || !rewardPayloadReady}
+            disabled={saving || loadingRewardPayload || !rewardPayloadReady || loadingExpectedAnswer || !expectedAnswerReady}
           >
             {saving ? 'Saving…' : mission ? 'Save mission' : 'Create mission'}
           </button>

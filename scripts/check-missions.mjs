@@ -36,6 +36,29 @@ assert.equal(
 );
 assert.equal(normalizeCreateInput({ ...baseInput, expires_at: '2026-07-27T17:16:00Z' }, now).error, null);
 assert.equal(normalizeCreateInput({ ...baseInput, expires_at: null }, now).error, null);
+assert.equal(normalizeCreateInput({ ...baseInput, verification_mode: 'none' }, now).error, null);
+assert.notEqual(normalizeCreateInput({ ...baseInput, verification_mode: 'prompt' }, now).error, null);
+assert.equal(
+  normalizeCreateInput({ ...baseInput, verification_mode: 'prompt', submission_prompt: 'Where did you leave it?' }, now).error,
+  null
+);
+assert.notEqual(
+  normalizeCreateInput({ ...baseInput, verification_mode: 'answer', submission_prompt: 'Where did you leave it?' }, now).error,
+  null
+);
+const answerMission = normalizeCreateInput({
+  ...baseInput,
+  verification_mode: 'answer',
+  submission_prompt: 'Where did you leave it?',
+  expected_answer: '  Under   the  yellow  flag  '
+}, now);
+assert.equal(answerMission.error, null);
+assert.equal(answerMission.data?.expected_answer, 'under the yellow flag');
+assert.notEqual(normalizeUpdateInput({ verification_mode: 'prompt' }, now).error, null);
+assert.notEqual(
+  normalizeUpdateInput({ verification_mode: 'answer', submission_prompt: 'Where did you leave it?' }, now).error,
+  null
+);
 assert.equal(
   normalizeCreateInput({ ...baseInput, expires_at: 'not-a-date' }, now).error,
   'That expiry date could not be read.'
