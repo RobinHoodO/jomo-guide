@@ -1,4 +1,5 @@
 {
   "installCommand": "npm install --production=false",
-  "buildCommand": "npx vite build"
+  "buildCommand": "npx vite build",
+  "rewrites": [{ "source": "/hq", "destination": "/index.html" }]
 }

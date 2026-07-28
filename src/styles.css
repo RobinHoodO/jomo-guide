@@ -1612,3 +1612,215 @@ main[data-quant='true'] ::selection {
     display: none !important;
   }
 }
+
+/* The game-master console is a separate entry path, so it carries the Quant palette itself. */
+.hq-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: #33ff66;
+  background: #020704;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.hq-terminal {
+  min-height: 100%;
+  margin-bottom: 0;
+  gap: 1.25rem;
+  overflow: visible;
+}
+
+.hq-header,
+.hq-row,
+.hq-simple-row,
+.hq-form-actions,
+.hq-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hq-header {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(51, 255, 102, 0.35);
+}
+
+.hq-kicker,
+.hq-section h2,
+.hq-quest-id {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hq-refreshed,
+.hq-dim,
+.hq-note {
+  margin: 0.25rem 0 0;
+  color: #8ecfa2;
+}
+
+.hq-section h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.hq-section h2 span {
+  color: #8ecfa2;
+}
+
+.hq-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.hq-row,
+.hq-simple-row,
+.hq-quest,
+.hq-activity {
+  padding: 0.65rem 0;
+  border-top: 1px solid rgba(51, 255, 102, 0.22);
+}
+
+.hq-row > div:first-child,
+.hq-simple-row span {
+  min-width: 0;
+}
+
+.hq-row p,
+.hq-quest p,
+.hq-activity p,
+.hq-simple-row {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.hq-simple-row time {
+  flex: 0 0 auto;
+  color: #8ecfa2;
+}
+
+.hq-button,
+.hq-expand {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  color: #33ff66;
+  background: transparent;
+  border: 1px solid currentColor;
+  font: inherit;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.hq-button:hover,
+.hq-button:focus-visible,
+.hq-expand:hover,
+.hq-expand:focus-visible {
+  color: #020704;
+  background: #33ff66;
+  outline: none;
+}
+
+.hq-button:disabled {
+  opacity: 0.5;
+}
+
+.hq-danger {
+  color: #e5989b;
+}
+
+.hq-approvals {
+  padding: 0.7rem;
+  border: 1px solid rgba(51, 255, 102, 0.45);
+}
+
+.hq-expand {
+  width: 100%;
+  text-align: left;
+}
+
+.hq-approvals .hq-list {
+  margin-top: 0.6rem;
+}
+
+.hq-notice-form,
+.hq-gate-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.hq-notice-form textarea,
+.hq-notice-form input {
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  color: #d7ffe2;
+  background: rgba(51, 255, 102, 0.06);
+  border: 1px solid rgba(51, 255, 102, 0.45);
+  border-radius: 0;
+  font: inherit;
+}
+
+.hq-notice-form textarea:focus,
+.hq-notice-form input:focus {
+  outline: 1px solid #33ff66;
+}
+
+.hq-form-actions label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #8ecfa2;
+  font-size: 0.75rem;
+}
+
+.hq-form-actions input {
+  width: 5.5rem;
+}
+
+.hq-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem !important;
+}
+
+.hq-chips span,
+.hq-tag {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 0.4rem !important;
+  padding: 0.1rem 0.3rem;
+  color: #020704;
+  background: #33ff66;
+  font-size: 0.7rem;
+}
+
+.hq-quest-step {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.45rem 0;
+}
+
+.hq-quest-step + .hq-quest-step {
+  border-top: 1px dashed rgba(51, 255, 102, 0.25);
+}
+
+.hq-actions {
+  flex: 0 0 auto;
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.hq-error {
+  margin: 0;
+  color: #e5989b;
+}
+
+@media (min-width: 32rem) {
+  .hq-actions {
+    flex-direction: row;
+  }
+}

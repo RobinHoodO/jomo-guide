@@ -48,6 +48,14 @@ const config = defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,woff2}'],
+        globIgnores: ['**/hq-*.js'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/hq-.*\.js$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'hq' }
+          }
+        ],
         cleanupOutdatedCaches: true
       },
       devOptions: {
@@ -63,6 +71,7 @@ const config = defineConfig({
         // The data is ~2/3 of the old single chunk. Splitting it means a code-only deploy no
         // longer re-ships ~520KB gz to every installed phone — the data chunk keeps its hash.
         manualChunks(id: string) {
+          if (id.includes('components/HQ') || id.includes('lib/gm')) return 'hq';
           if (id.includes('src/data/events.json')) return 'events-data';
           if (id.includes('src/data/destinations.json')) return 'destinations-data';
         }

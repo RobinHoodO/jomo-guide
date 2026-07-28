@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 // Latin subsets only — the full imports also pull Devanagari (119 KB) and
@@ -11,6 +11,8 @@ import '@fontsource/baloo-2/latin-ext-800.css';
 import App from './App';
 import { initPwa } from './lib/pwa';
 import './styles.css';
+
+const HQ = lazy(() => import('./components/HQ'));
 
 // DSN is public by design (client-side). Only report from the deployed build.
 if (import.meta.env.PROD) {
@@ -41,7 +43,7 @@ initPwa();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<p style={{ padding: 24 }}>Something broke — reload to try again.</p>}>
-      <App />
+      {location.pathname === '/hq' ? <Suspense fallback={<p style={{ padding: 24 }}>Connecting…</p>}><HQ /></Suspense> : <App />}
     </Sentry.ErrorBoundary>
   </StrictMode>
 );
