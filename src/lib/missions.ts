@@ -4,6 +4,7 @@ import { normalizeCreateInput, normalizeUpdateInput } from './mission-rules';
 import { ensureSignedIn, getSupabase } from './supabase';
 
 const MISSIONS_CACHE_KEY = 'jomo26:missions-cache';
+const MISSION_NAMES_CACHE_KEY = 'jomo26:mission-names';
 
 export type CapacityType = 'open' | 'limited' | 'exclusive';
 export type MissionVisibility = 'public' | 'hidden';
@@ -116,6 +117,7 @@ export type MissionResult<T> = {
 
 export type MissionListResult = Omit<MissionResult<MissionWithClaims[]>, 'data'> & {
   data: MissionWithClaims[];
+  names: Record<string, string>;
 };
 
 export type MissionReward = {
@@ -153,7 +155,14 @@ export type QuestShape = {
   your_progress: number | null;
 };
 
-type MissionRowWithClaims = Mission & { mission_claims?: Claim[] | null };
+type ProfileEmbed = { display_name?: string | null };
+type ClaimRowWithClaimer = Claim & { claimer?: ProfileEmbed | null };
+type MissionRowWithClaims = Mission & {
+  creator?: ProfileEmbed | null;
+  mission_claims?: ClaimRowWithClaimer[] | null;
+};
+type CachedMissionRow = Mission & { mission_claims?: Claim[] | null };
+type CachedMissionBoard = { rows: CachedMissionRow[]; names: Record<string, string> };
 type RewardSaveInput = Pick<CreateMissionInput, 'reward_kind' | 'reward_body' | 'reward_closer_body'>;
 type SupabaseClient = NonNullable<ReturnType<typeof getSupabase>>;
 
@@ -169,8 +178,13 @@ function fail<T>(error: string, queued = false): MissionResult<T> {
   return { data: null, error, stale: false, queued };
 }
 
-function listResult(data: MissionWithClaims[], error: string | null, stale: boolean): MissionListResult {
-  return { data, error, stale, queued: false };
+function listResult(
+  data: MissionWithClaims[],
+  error: string | null,
+  stale: boolean,
+  names: Record<string, string>
+): MissionListResult {
+  return { data, error, stale, queued: false, names };
 }
 
 function errorMessage(error: unknown, fallback = 'Missions are unavailable right now.') {
@@ -187,21 +201,68 @@ function isConnectivityError(error: unknown) {
   return /network|fetch|offline|timeout|abort/i.test(errorMessage(error, ''));
 }
 
-function readCachedRows(): MissionRowWithClaims[] | null {
+function readCachedNames(): Record<string, string> {
+  try {
+    const value = localStorage.getItem(MISSION_NAMES_CACHE_KEY);
+    if (!value) return {};
+
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([id, name]) => typeof id === 'string' && typeof name === 'string' && name.trim())
+    );
+  } catch {
+    return {};
+  }
+}
+
+function embeddedName(profile: ProfileEmbed | null | undefined) {
+  const name = profile?.display_name?.trim();
+  return name || null;
+}
+
+function normaliseRows(rows: MissionRowWithClaims[]): CachedMissionBoard {
+  const names: Record<string, string> = {};
+  const normalizedRows = rows.map((row) => {
+    const { creator, mission_claims: missionClaims, ...mission } = row;
+    const creatorName = embeddedName(creator);
+    if (creatorName) names[mission.creator_id] = creatorName;
+
+    const claims = Array.isArray(missionClaims)
+      ? missionClaims.map((claim) => {
+          const { claimer, ...normalizedClaim } = claim;
+          const claimerName = embeddedName(claimer);
+          if (claimerName) names[normalizedClaim.claimer_id] = claimerName;
+          return normalizedClaim;
+        })
+      : missionClaims;
+
+    return { ...mission, mission_claims: claims };
+  });
+
+  return { rows: normalizedRows, names };
+}
+
+function readCachedRows(): CachedMissionBoard | null {
   try {
     const value = localStorage.getItem(MISSIONS_CACHE_KEY);
     if (!value) return null;
 
     const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as MissionRowWithClaims[]) : null;
+    if (!Array.isArray(parsed)) return null;
+
+    const normalized = normaliseRows(parsed as MissionRowWithClaims[]);
+    return { rows: normalized.rows, names: { ...readCachedNames(), ...normalized.names } };
   } catch {
     return null;
   }
 }
 
-function cacheRows(rows: MissionRowWithClaims[]) {
+function cacheRows(rows: CachedMissionRow[], names: Record<string, string>) {
   try {
     localStorage.setItem(MISSIONS_CACHE_KEY, JSON.stringify(rows));
+    localStorage.setItem(MISSION_NAMES_CACHE_KEY, JSON.stringify(names));
   } catch {
     // A cache is a convenience; private browsing must remain fully usable without it.
   }
@@ -219,7 +280,7 @@ async function currentUserId() {
   }
 }
 
-function withClaims(row: MissionRowWithClaims, userId: string | null): MissionWithClaims {
+function withClaims(row: CachedMissionRow, userId: string | null): MissionWithClaims {
   const { mission_claims: missionClaims, ...mission } = row;
   const claims = Array.isArray(missionClaims) ? missionClaims : [];
   const activeClaims = claims.filter((claim) => claim.state !== 'released');
@@ -297,15 +358,16 @@ export async function listMissions(): Promise<MissionListResult> {
   const cached = readCachedRows();
 
   if (!canSpendBandwidth()) {
-    return listResult((cached ?? []).map((row) => withClaims(row, null)), null, true);
+    return listResult((cached?.rows ?? []).map((row) => withClaims(row, null)), null, true, cached?.names ?? {});
   }
 
   const supabase = getSupabase();
   if (!supabase) {
     return listResult(
-      (cached ?? []).map((row) => withClaims(row, null)),
+      (cached?.rows ?? []).map((row) => withClaims(row, null)),
       'Missions are unavailable right now.',
-      true
+      true,
+      cached?.names ?? {}
     );
   }
 
@@ -314,21 +376,25 @@ export async function listMissions(): Promise<MissionListResult> {
   try {
     const { data, error } = await supabase
       .from('missions')
-      .select('*, mission_claims(*)')
+      .select(
+        'id,creator_id,title,description,capacity_type,capacity,grid_ref,requires_presence,verification_mode,submission_prompt,visibility,is_closed,expires_at,reward_kind,reward_threshold,quest_id,quest_step,quest_reveal,created_at,updated_at,creator:profiles!missions_creator_id_fkey(display_name),mission_claims(id,mission_id,claimer_id,state,claimed_at,done_at,released_at,submission_note,submitted_at,claimer:profiles!mission_claims_claimer_id_fkey(display_name))'
+      )
       .eq('visibility', 'public')
       .eq('is_closed', false)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) throw error;
 
-    const rows = (data ?? []) as MissionRowWithClaims[];
-    cacheRows(rows);
-    return listResult(rows.map((row) => withClaims(row, userId)), null, false);
+    const normalized = normaliseRows((data ?? []) as MissionRowWithClaims[]);
+    cacheRows(normalized.rows, normalized.names);
+    return listResult(normalized.rows.map((row) => withClaims(row, userId)), null, false, normalized.names);
   } catch (error) {
     return listResult(
-      (cached ?? []).map((row) => withClaims(row, userId)),
+      (cached?.rows ?? []).map((row) => withClaims(row, userId)),
       cached ? 'Showing saved missions while the board reconnects.' : errorMessage(error),
-      true
+      true,
+      cached?.names ?? {}
     );
   }
 }
@@ -536,6 +602,22 @@ export async function getQuestShape(questId: string): Promise<MissionResult<Ques
     return fail<QuestShape>(
       isConnectivityError(error) ? 'The channel is quiet from here. Try opening this quest again when you have signal.' : errorMessage(error, 'That quest could not be opened right now.')
     );
+  }
+}
+
+export async function getQuestShapes(questIds: string[]): Promise<Record<string, QuestShape>> {
+  const ids = [...new Set(questIds.filter(validId))];
+  if (!ids.length || !canSpendBandwidth()) return {};
+
+  const supabase = getSupabase();
+  if (!supabase) return {};
+
+  try {
+    const { data, error } = await supabase.rpc('quest_shapes', { p_quest_ids: ids });
+    if (error || !data || typeof data !== 'object' || Array.isArray(data)) return {};
+    return data as Record<string, QuestShape>;
+  } catch {
+    return {};
   }
 }
 

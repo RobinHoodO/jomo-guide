@@ -17,7 +17,12 @@ import {
   subscribePresence
 } from './lib/hidden';
 import { getGridExperienceSnapshot, subscribeGridExperience } from './lib/grid-experiences';
-import { canSpendBandwidth } from './lib/network';
+import {
+  canSpendBandwidth,
+  getSnapshot as getLowSignalSnapshot,
+  subscribe as subscribeLowSignal
+} from './lib/network';
+import { flushOutbox } from './lib/outbox';
 import { flushUsage, recordOpen } from './lib/usage';
 
 const MapTab = lazy(() => import('./components/MapTab').then((m) => ({ default: m.MapTab })));
@@ -62,6 +67,7 @@ function TabIcon({ name }: { name: Tab }) {
 
 export default function App() {
   const { unlocked } = useSyncExternalStore(subscribeHidden, getHiddenSnapshot, getHiddenSnapshot);
+  const lowSignalMode = useSyncExternalStore(subscribeLowSignal, getLowSignalSnapshot, getLowSignalSnapshot);
   const gridExperience = useSyncExternalStore(
     subscribeGridExperience,
     getGridExperienceSnapshot,
@@ -81,12 +87,20 @@ export default function App() {
   const deepLinkHighlightTimer = useRef<number | null>(null);
   const onlineFlushTimer = useRef<number | null>(null);
   const hasRecordedOpen = useRef(false);
+  const wasLowSignalMode = useRef(lowSignalMode);
   const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
   // Leaving the grid resets the decline: walking out and back in re-arms the takeover.
   useEffect(() => {
     if (gridExperience === null) setQuantDeclined(false);
   }, [gridExperience]);
+
+  useEffect(() => {
+    if (wasLowSignalMode.current && !lowSignalMode && typeof navigator !== 'undefined' && navigator.onLine) {
+      void flushOutbox();
+    }
+    wasLowSignalMode.current = lowSignalMode;
+  }, [lowSignalMode]);
 
   const handleUnlock = useCallback(() => {
     setTab('missions');
@@ -263,6 +277,16 @@ export default function App() {
                   Joy of missing out. Pick a few things. Let the rest sparkle elsewhere.
                 </p>
                 {presence ? <p className="section-kicker presence-place mt-2">{PRESENCE_PLACE_NAME}</p> : null}
+                {lowSignalMode ? (
+                  <button
+                    type="button"
+                    className="soft-badge mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink/35"
+                    onClick={() => setTab('info')}
+                    aria-label="Low signal mode is on. Open Info."
+                  >
+                    low signal
+                  </button>
+                ) : null}
               </div>
               <div className="flex items-start gap-1.5">
                 <img

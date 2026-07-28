@@ -10,7 +10,7 @@ import {
   claimMission,
   createMission,
   deleteMission,
-  getQuestShape,
+  getQuestShapes,
   getMissionReward,
   listMissions,
   rejectClaim,
@@ -626,22 +626,6 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
     setHiddenMissionTarget(isHidden(selectedMission.id) ? selectedMission.id : null);
   }, [isHidden, selectedMission?.id, selectedMission?.token]);
 
-  const loadCreatorNames = useCallback(async (items: MissionWithClaims[]) => {
-    if (!canSpendBandwidth()) return;
-
-    const ids = [...new Set(items.flatMap((item) => [item.creator_id, ...item.claims.map((claim) => claim.claimer_id)]))];
-    const supabase = getSupabase();
-    if (!ids.length || !supabase) return;
-
-    const { data, error } = await supabase.from('profiles').select('id, display_name').in('id', ids);
-    if (error || !data) return;
-
-    const names = Object.fromEntries(
-      data.map((profile) => [profile.id, profile.display_name?.trim() || ANONYMOUS_BURNER])
-    );
-    setCreatorNames((current) => ({ ...current, ...names }));
-  }, []);
-
   const applyBoard = useCallback(
     (result: MissionListResult, options: BoardRefreshOptions = {}) => {
       // A step past the first that you didn't create is only readable because YOU unlocked it —
@@ -660,6 +644,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       boardMissionIds.current = new Set(result.data.map((mission) => mission.id));
       hasLoadedBoard.current = true;
       setMissions([...result.data].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      setCreatorNames((current) => ({ ...current, ...result.names }));
       setQueuedClaimIds((current) => {
         const stillWaiting = [...current].filter((id) => !result.data.some((mission) => mission.id === id && mission.myClaim));
         return new Set(stillWaiting);
@@ -667,7 +652,6 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
       setStale(result.stale);
       setBoardError(result.error);
       setLoading(false);
-      void loadCreatorNames(result.data);
 
       if (newlyVisibleQuestStep) {
         setFilters((current) => ({ ...EMPTY_MISSION_FILTERS, sort: current.sort }));
@@ -685,7 +669,7 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
         );
       }
     },
-    [loadCreatorNames, userId]
+    [userId]
   );
 
   const refreshBoard = useCallback(async (options: BoardRefreshOptions = {}) => {
@@ -702,16 +686,11 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
     if (!missingQuestIds.length) return;
 
     missingQuestIds.forEach((questId) => requestedQuestShapes.current.add(questId));
-    void Promise.all(missingQuestIds.map(async (questId) => ({ questId, result: await getQuestShape(questId) }))).then((results) => {
-      const fetchedShapes = results.filter((item) => item.result.data !== null);
-      if (!fetchedShapes.length) return;
+    void getQuestShapes(missingQuestIds).then((fetchedShapes) => {
+      if (!Object.keys(fetchedShapes).length) return;
 
       setQuestShapes((current) => {
-        const next = { ...current };
-        fetchedShapes.forEach(({ questId, result }) => {
-          next[questId] = result.data!;
-        });
-        return next;
+        return { ...current, ...fetchedShapes };
       });
     });
   }, [missions]);
@@ -761,8 +740,12 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
 
     if (!initialization.current) {
       initialization.current = (async () => {
-        const id = await ensureSignedIn();
-        const board = await listMissions();
+        const signedIn = ensureSignedIn();
+        const boardPromise = listMissions();
+        void signedIn.then((id) => {
+          if (id) return loadProfile(id);
+        });
+        const [id, board] = await Promise.all([signedIn, boardPromise]);
         return { id, board };
       })();
     }
@@ -779,7 +762,6 @@ export function Missions({ onSelectGrid, onSelectCamp: _onSelectCamp, selectedMi
             : 'You’re offline, so this is a saved read-only board.'
       );
       applyBoard(board);
-      if (id) void loadProfile(id);
     });
 
     return () => {

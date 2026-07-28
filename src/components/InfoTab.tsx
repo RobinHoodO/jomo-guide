@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useSyncExternalStore, type CSSProperties } from 'react';
 import {
   EMERGENCY,
   INFO_SECTIONS,
@@ -9,6 +9,11 @@ import {
 } from '../data/info-content';
 import { DEST_CATEGORY_COLORS } from '../lib/destinations';
 import { CATEGORY_COLORS } from '../lib/events';
+import {
+  getSnapshot as getLowSignalSnapshot,
+  setLowSignalMode,
+  subscribe as subscribeLowSignal
+} from '../lib/network';
 
 function PhoneIcon() {
   return (
@@ -119,6 +124,8 @@ function SignIconList({ items }: { items: Array<{ icon: string; meaning: string 
 }
 
 export function InfoTab() {
+  const lowSignalMode = useSyncExternalStore(subscribeLowSignal, getLowSignalSnapshot, getLowSignalSnapshot);
+
   return (
     <div className="space-y-5">
       <section className="space-y-1.5">
@@ -192,6 +199,26 @@ export function InfoTab() {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="panel-card space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="section-kicker text-pink">Connection</p>
+            <h3 className="display-heading text-lg text-indigo-brand">Low signal mode</h3>
+          </div>
+          <label className="toggle-row map-art-toggle shrink-0">
+            <input
+              type="checkbox"
+              checked={lowSignalMode}
+              onChange={(event) => setLowSignalMode(event.target.checked)}
+            />
+            <span className="sr-only">Low signal mode</span>
+          </label>
+        </div>
+        <p className="text-sm leading-5 text-[var(--muted-indigo)]">
+          Stops all background traffic. Changes queue on this phone and send when you turn it off.
+        </p>
       </section>
 
       <section className="space-y-2">
