@@ -56,7 +56,18 @@ const config = defineConfig({
     }) as any
   ],
   build: {
-    sourcemap: true
+    // 'hidden': maps still upload to Sentry but the bundle carries no sourceMappingURL comment.
+    sourcemap: 'hidden',
+    rollupOptions: {
+      output: {
+        // The data is ~2/3 of the old single chunk. Splitting it means a code-only deploy no
+        // longer re-ships ~520KB gz to every installed phone — the data chunk keeps its hash.
+        manualChunks(id: string) {
+          if (id.includes('src/data/events.json')) return 'events-data';
+          if (id.includes('src/data/destinations.json')) return 'destinations-data';
+        }
+      }
+    }
   },
   server: {
     port: 5174,
