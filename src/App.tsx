@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Analytics } from '@vercel/analytics/react';
-import { Destinations } from './components/Destinations';
-import { EstablishingLink } from './components/EstablishingLink';
-import { InfoTab } from './components/InfoTab';
 import { InstallBanner } from './components/InstallBanner';
-import { MapTab } from './components/MapTab';
-import { Missions } from './components/Missions';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
 import { PullToRefresh } from './components/PullToRefresh';
-import { QuantTerminal } from './components/QuantTerminal';
 import { Schedule } from './components/Schedule';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useFavorites } from './hooks/useFavorites';
@@ -25,6 +19,15 @@ import {
 import { getGridExperienceSnapshot, subscribeGridExperience } from './lib/grid-experiences';
 import { canSpendBandwidth } from './lib/network';
 import { flushUsage, recordOpen } from './lib/usage';
+
+const MapTab = lazy(() => import('./components/MapTab').then((m) => ({ default: m.MapTab })));
+const Missions = lazy(() => import('./components/Missions').then((m) => ({ default: m.Missions })));
+const Destinations = lazy(() => import('./components/Destinations').then((m) => ({ default: m.Destinations })));
+const InfoTab = lazy(() => import('./components/InfoTab').then((m) => ({ default: m.InfoTab })));
+const QuantTerminal = lazy(() => import('./components/QuantTerminal').then((m) => ({ default: m.QuantTerminal })));
+const EstablishingLink = lazy(() =>
+  import('./components/EstablishingLink').then((m) => ({ default: m.EstablishingLink }))
+);
 
 type Tab = 'program' | 'schedule' | 'map' | 'camps' | 'info' | 'missions';
 type CampSelection = { id: string; token: number };
@@ -213,17 +216,21 @@ export default function App() {
           <>
             <UpdateBanner />
             <div className="quant-shell">
-              <QuantTerminal onDecline={() => setQuantDeclined(true)} />
-              <MapTab
-                selectedGrid={selectedGrid}
-                onSelectGrid={selectGrid}
-                onSelectCamp={selectCamp}
-                isFavorite={isFavorite}
-                toggleFavorite={handleToggleFavorite}
-                onUnlock={handleUnlock}
-                onOpenMissions={() => setTab('missions')}
-                onOpenMission={selectMission}
-              />
+              <Suspense fallback={<div />}>
+                <QuantTerminal onDecline={() => setQuantDeclined(true)} />
+              </Suspense>
+              <Suspense fallback={<div />}>
+                <MapTab
+                  selectedGrid={selectedGrid}
+                  onSelectGrid={selectGrid}
+                  onSelectCamp={selectCamp}
+                  isFavorite={isFavorite}
+                  toggleFavorite={handleToggleFavorite}
+                  onUnlock={handleUnlock}
+                  onOpenMissions={() => setTab('missions')}
+                  onOpenMission={selectMission}
+                />
+              </Suspense>
             </div>
           </>
         ) : (
@@ -358,32 +365,42 @@ export default function App() {
           ) : null}
 
           {tab === 'map' ? (
-            <MapTab
-              selectedGrid={selectedGrid}
-              onSelectGrid={selectGrid}
-              onSelectCamp={selectCamp}
-              isFavorite={isFavorite}
-              toggleFavorite={handleToggleFavorite}
-              onUnlock={handleUnlock}
-              onOpenMissions={() => setTab('missions')}
-              onOpenMission={selectMission}
-            />
+            <Suspense fallback={<p className="px-1 text-sm text-[var(--muted-indigo)]">…</p>}>
+              <MapTab
+                selectedGrid={selectedGrid}
+                onSelectGrid={selectGrid}
+                onSelectCamp={selectCamp}
+                isFavorite={isFavorite}
+                toggleFavorite={handleToggleFavorite}
+                onUnlock={handleUnlock}
+                onOpenMissions={() => setTab('missions')}
+                onOpenMission={selectMission}
+              />
+            </Suspense>
           ) : null}
 
           {tab === 'camps' ? (
-            <Destinations
-              selectedCamp={selectedCamp}
-              isFavorite={isFavorite}
-              toggleFavorite={handleToggleFavorite}
-              onSelectGrid={selectGrid}
-              onSelectCamp={selectCamp}
-            />
+            <Suspense fallback={<p className="px-1 text-sm text-[var(--muted-indigo)]">…</p>}>
+              <Destinations
+                selectedCamp={selectedCamp}
+                isFavorite={isFavorite}
+                toggleFavorite={handleToggleFavorite}
+                onSelectGrid={selectGrid}
+                onSelectCamp={selectCamp}
+              />
+            </Suspense>
           ) : null}
 
-          {tab === 'info' ? <InfoTab /> : null}
+          {tab === 'info' ? (
+            <Suspense fallback={<p className="px-1 text-sm text-[var(--muted-indigo)]">…</p>}>
+              <InfoTab />
+            </Suspense>
+          ) : null}
 
           {tab === 'missions' ? (
-            <Missions onSelectGrid={selectGrid} onSelectCamp={selectCamp} selectedMission={selectedMission} />
+            <Suspense fallback={<p className="px-1 text-sm text-[var(--muted-indigo)]">…</p>}>
+              <Missions onSelectGrid={selectGrid} onSelectCamp={selectCamp} selectedMission={selectedMission} />
+            </Suspense>
           ) : null}
 
           <footer className="guide-footer mt-8 border-t border-cream/20 py-4 text-xs leading-5 text-cream">
@@ -407,7 +424,11 @@ export default function App() {
           </>
         )}
       </main>
-      {isQuantTerminalActive ? null : <EstablishingLink open={linkOpen} onClose={closeLink} />}
+      {!isQuantTerminalActive && linkOpen ? (
+        <Suspense fallback={<p className="px-1 text-sm text-[var(--muted-indigo)]">…</p>}>
+          <EstablishingLink open={linkOpen} onClose={closeLink} />
+        </Suspense>
+      ) : null}
     </>
   );
 }
