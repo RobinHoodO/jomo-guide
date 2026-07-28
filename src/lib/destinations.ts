@@ -1,4 +1,8 @@
-import destinationsJson from '../data/destinations.json';
+import destinationsUrl from '../data/destinations.json?url';
+const destinationsJson = (await fetch(destinationsUrl).then((r) => {
+  if (!r.ok) throw new Error(`destinations data failed to load (${r.status})`);
+  return r.json();
+})) as Destination[];
 
 export type Destination = {
   id: string;

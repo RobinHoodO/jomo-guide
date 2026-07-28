@@ -1,4 +1,8 @@
-import eventsJson from '../data/events.json';
+import eventsUrl from '../data/events.json?url';
+const eventsJson = (await fetch(eventsUrl).then((r) => {
+  if (!r.ok) throw new Error(`events data failed to load (${r.status})`);
+  return r.json();
+})) as EventItem[];
 import { isPastEvent } from './past';
 
 export { isPastEvent };

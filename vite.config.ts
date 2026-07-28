@@ -47,7 +47,7 @@ const config = defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,woff2,json}'],
         globIgnores: ['**/hq-*.js'],
         runtimeCaching: [
           {
@@ -64,16 +64,15 @@ const config = defineConfig({
     }) as any
   ],
   build: {
+    target: 'es2022',
     // 'hidden': maps still upload to Sentry but the bundle carries no sourceMappingURL comment.
     sourcemap: 'hidden',
     rollupOptions: {
       output: {
-        // The data is ~2/3 of the old single chunk. Splitting it means a code-only deploy no
-        // longer re-ships ~520KB gz to every installed phone — the data chunk keeps its hash.
+        // The data is ~2/3 of the old single chunk. Content-hashed assets mean a code-only
+        // deploy no longer re-ships ~520KB gz to every installed phone.
         manualChunks(id: string) {
           if (id.includes('components/HQ') || id.includes('lib/gm')) return 'hq';
-          if (id.includes('src/data/events.json')) return 'events-data';
-          if (id.includes('src/data/destinations.json')) return 'destinations-data';
         }
       }
     }
