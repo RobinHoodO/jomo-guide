@@ -31,6 +31,8 @@ export function initSentry(queuedErrors: QueuedErrors = [] as QueuedErrors) {
       'Error invoking post',
       'Error invoking postEvent',
       'Error invoking enableDidUserTypeOnKeyboardLogging',
+      // WebExtension API — a browser extension injected into the page, not us.
+      'Invalid call to runtime.sendMessage',
     ],
     denyUrls: [
       /^iabjs:\/\//i,
