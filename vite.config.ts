@@ -11,8 +11,8 @@ const config = defineConfig({
     __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version)
   },
   plugins: [
-    react() as any,
-    tailwindcss() as any,
+    react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['map-official.webp', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
@@ -61,7 +61,7 @@ const config = defineConfig({
       devOptions: {
         enabled: true
       }
-    }) as any
+    })
   ],
   build: {
     target: 'es2022',
@@ -95,7 +95,7 @@ if (process.env.SENTRY_AUTH_TOKEN) {
     sourcemaps: {
       filesToDeleteAfterUpload: ['dist/**/*.map']
     }
-  }) as any);
+  }));
 }
 
 export default config;

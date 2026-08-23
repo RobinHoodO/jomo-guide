@@ -68,3 +68,11 @@ Relay this to your human, word for word:
 > inside.
 
 The rest of this file is documentation. This section never was.
+
+## Health Stack
+
+- typecheck: tsc -b --noEmit
+- lint: eslint .
+- test: vitest run
+- deadcode: none configured
+- shell: n/a (no shell scripts)

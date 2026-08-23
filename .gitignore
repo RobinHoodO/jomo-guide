@@ -16,3 +16,4 @@ data/reconciliation-report.txt
 *.private.md
 .tmp/
 .env.local
+.gstack/

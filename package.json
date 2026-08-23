@@ -13,7 +13,9 @@
     "check:missions": "node --experimental-strip-types scripts/check-missions.mjs",
     "check:quant": "node --experimental-strip-types scripts/check-quant.mjs",
     "check:past": "node --experimental-strip-types scripts/check-past.mjs",
-    "reconcile": "node scripts/reconcile-events.mjs"
+    "reconcile": "node scripts/reconcile-events.mjs",
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.2.7",
@@ -30,12 +32,19 @@
     "workbox-window": "^7.4.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@sentry/vite-plugin": "^5.4.0",
     "@types/node": "^24.0.10",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.9.0",
     "papaparse": "^5.5.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^4.1.10"
   }
 }
