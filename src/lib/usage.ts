@@ -1,4 +1,3 @@
-import { track } from '@vercel/analytics';
 import { canSpendBandwidth } from './network';
 
 type UsageEntry = {
@@ -87,13 +86,7 @@ export function flushUsage() {
     const unsentEntries = Object.entries(usage).filter(([day, entry]) => day !== today && !entry.sent);
     if (unsentEntries.length === 0) return;
 
-    const days = unsentEntries
-      .map(([day, entry]) => `${day}:${entry.opens}:${entry.offline}`)
-      .join(',');
-
     try {
-      track('usage-batch', { days });
-
       for (const [, entry] of unsentEntries) {
         entry.sent = true;
       }

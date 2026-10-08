@@ -17,15 +17,13 @@
     "test": "vitest run",
     "reconcile": "node scripts/reconcile-events.mjs",
     "cf:dev": "wrangler dev",
-    "cf:deploy": "npm run build && wrangler deploy",
-    "cf:deploy:neon": "npm run build && wrangler deploy -c wrangler.neon.jsonc"
+    "cf:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.2.7",
     "@neondatabase/serverless": "^1.2.0",
     "@sentry/react": "^10.64.0",
     "@tailwindcss/vite": "^4.3.2",
-    "@vercel/analytics": "^2.0.1",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

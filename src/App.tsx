@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import { InstallBanner } from './components/InstallBanner';
 import { MissingOutCounter } from './components/MissingOutCounter';
 import { Program } from './components/Program';
@@ -18,7 +17,6 @@ import {
 } from './lib/hidden';
 import { getGridExperienceSnapshot, subscribeGridExperience } from './lib/grid-experiences';
 import {
-  canSpendBandwidth,
   getSnapshot as getLowSignalSnapshot,
   subscribe as subscribeLowSignal
 } from './lib/network';
@@ -220,7 +218,6 @@ export default function App() {
 
   return (
     <>
-      {canSpendBandwidth() ? <Analytics /> : null}
       <main
         className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}
         data-presence={isQuantTerminalActive ? undefined : presence ? 'true' : undefined}
