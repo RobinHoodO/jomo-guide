@@ -13,7 +13,9 @@
     "check:missions": "node --experimental-strip-types scripts/check-missions.mjs",
     "check:quant": "node --experimental-strip-types scripts/check-quant.mjs",
     "check:past": "node --experimental-strip-types scripts/check-past.mjs",
-    "reconcile": "node scripts/reconcile-events.mjs"
+    "reconcile": "node scripts/reconcile-events.mjs",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.2.7",
@@ -36,6 +38,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "papaparse": "^5.5.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.0.0"
   }
 }
