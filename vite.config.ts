@@ -8,7 +8,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string };
 const config = defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version)
+    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version),
+    // Vercel Analytics' script only exists on Vercel's edge network; other hosts
+    // (e.g. the Cloudflare Workers deploy) 404-as-HTML and the browser's attempt
+    // to parse that as JS throws "Unexpected token '<'" (Sentry issue 152373270).
+    __ON_VERCEL__: JSON.stringify(!!process.env.VERCEL)
   },
   plugins: [
     react(),

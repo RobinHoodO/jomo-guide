@@ -220,7 +220,7 @@ export default function App() {
 
   return (
     <>
-      {canSpendBandwidth() ? <Analytics /> : null}
+      {__ON_VERCEL__ && canSpendBandwidth() ? <Analytics /> : null}
       <main
         className={`relative min-h-screen overflow-hidden bg-navy text-cream ${plainBg ? 'is-plain-bg' : ''}`}
         data-presence={isQuantTerminalActive ? undefined : presence ? 'true' : undefined}

@@ -78,7 +78,7 @@ export function recordOpen() {
 }
 
 export function flushUsage() {
-  if (!canSpendBandwidth() || isFlushing) return;
+  if (!__ON_VERCEL__ || !canSpendBandwidth() || isFlushing) return;
 
   isFlushing = true;
   try {
