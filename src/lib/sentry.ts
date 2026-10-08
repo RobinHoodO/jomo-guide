@@ -37,6 +37,10 @@ export function initSentry(queuedErrors: QueuedErrors = [] as QueuedErrors) {
     denyUrls: [
       /^iabjs:\/\//i,
       /^(?!https?:\/\/)[a-z][a-z\d+.-]*:/i,
+      // Vercel's own Web Analytics beacon, injected by <Analytics /> in App.tsx.
+      // When Web Analytics isn't enabled on the Vercel project, this 404s as HTML,
+      // which the browser tries to parse as JS ("Unexpected token '<'") — Vercel's bug, not ours.
+      /\/_vercel\/insights\/script\.js/,
     ],
   });
   initialized = true;
