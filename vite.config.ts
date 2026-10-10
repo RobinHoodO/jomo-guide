@@ -8,11 +8,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string };
 const config = defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version)
+    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? version),
+    // Vercel Analytics' script only exists on Vercel's edge network; other hosts
+    // (e.g. the Cloudflare Workers deploy) 404-as-HTML and the browser's attempt
+    // to parse that as JS throws "Unexpected token '<'" (Sentry issue 152373270).
+    __ON_VERCEL__: JSON.stringify(!!process.env.VERCEL)
   },
   plugins: [
-    react() as any,
-    tailwindcss() as any,
+    react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['map-official.webp', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
@@ -61,7 +65,7 @@ const config = defineConfig({
       devOptions: {
         enabled: true
       }
-    }) as any
+    })
   ],
   build: {
     target: 'es2022',
@@ -95,7 +99,7 @@ if (process.env.SENTRY_AUTH_TOKEN) {
     sourcemaps: {
       filesToDeleteAfterUpload: ['dist/**/*.map']
     }
-  }) as any);
+  }));
 }
 
 export default config;

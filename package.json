@@ -16,6 +16,7 @@
     "check:worker": "tsc -p tsconfig.worker.json --noEmit",
     "test": "vitest run",
     "reconcile": "node scripts/reconcile-events.mjs",
+    "lint": "eslint .",
     "cf:dev": "wrangler dev",
     "cf:deploy": "npm run build && wrangler deploy"
   },
@@ -34,13 +35,19 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261008.1",
+    "@eslint/js": "^10.0.1",
     "@sentry/vite-plugin": "^5.4.0",
     "@types/node": "^24.0.10",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.9.0",
     "papaparse": "^5.5.3",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^5.0.3",
     "wrangler": "^4.0.0"
   }

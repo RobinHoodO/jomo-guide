@@ -1,0 +1,1 @@
+/Users/robinsverd/gstack/design-shotgun/SKILL.md

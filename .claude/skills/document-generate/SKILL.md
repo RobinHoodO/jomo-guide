@@ -1,0 +1,1 @@
+/Users/robinsverd/gstack/document-generate/SKILL.md

@@ -33,10 +33,16 @@ export function initSentry(queuedErrors: QueuedErrors = [] as QueuedErrors) {
       'Error invoking enableDidUserTypeOnKeyboardLogging',
       // WebExtension API — a browser extension injected into the page, not us.
       'Invalid call to runtime.sendMessage',
+      // Vercel's own Web Analytics beacon (<Analytics /> in App.tsx) 404s as HTML when
+      // Web Analytics isn't enabled on the project; the browser then tries to parse that
+      // HTML as JS. This parse error has no stack frames, so denyUrls (which matches on
+      // frame URLs) can't catch it — match the message text instead.
+      "Unexpected token '<'",
     ],
     denyUrls: [
       /^iabjs:\/\//i,
       /^(?!https?:\/\/)[a-z][a-z\d+.-]*:/i,
+      /\/_vercel\/insights\/script\.js/,
     ],
   });
   initialized = true;

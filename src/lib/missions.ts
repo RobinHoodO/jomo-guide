@@ -222,7 +222,7 @@ function embeddedName(profile: ProfileEmbed | null | undefined) {
   return name || null;
 }
 
-function normaliseRows(rows: MissionRowWithClaims[]): CachedMissionBoard {
+export function normaliseRows(rows: MissionRowWithClaims[]): CachedMissionBoard {
   const names: Record<string, string> = {};
   const normalizedRows = rows.map((row) => {
     const { creator, mission_claims: missionClaims, ...mission } = row;
@@ -280,7 +280,7 @@ async function currentUserId() {
   }
 }
 
-function withClaims(row: CachedMissionRow, userId: string | null): MissionWithClaims {
+export function withClaims(row: CachedMissionRow, userId: string | null): MissionWithClaims {
   const { mission_claims: missionClaims, ...mission } = row;
   const claims = Array.isArray(missionClaims) ? missionClaims : [];
   const activeClaims = claims.filter((claim) => claim.state !== 'released');
@@ -295,7 +295,7 @@ function withClaims(row: CachedMissionRow, userId: string | null): MissionWithCl
   };
 }
 
-function validId(id: string) {
+export function validId(id: string) {
   return id.trim().length > 0;
 }
 
@@ -640,7 +640,7 @@ export async function deleteMission(id: string): Promise<MissionResult<string>> 
   }
 }
 
-function claimErrorMessage(error: unknown) {
+export function claimErrorMessage(error: unknown) {
   const message = errorMessage(error).toLowerCase();
   if (message.includes('mission is already full')) return 'Someone got there first — this mission is already full.';
   if (message.includes('mission is closed')) return 'This mission is closed.';
