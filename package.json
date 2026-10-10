@@ -13,16 +13,18 @@
     "check:missions": "node --experimental-strip-types scripts/check-missions.mjs",
     "check:quant": "node --experimental-strip-types scripts/check-quant.mjs",
     "check:past": "node --experimental-strip-types scripts/check-past.mjs",
+    "check:worker": "tsc -p tsconfig.worker.json --noEmit",
+    "test": "vitest run",
     "reconcile": "node scripts/reconcile-events.mjs",
     "lint": "eslint .",
-    "test": "vitest run"
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource/baloo-2": "^5.2.7",
+    "@neondatabase/serverless": "^1.2.0",
     "@sentry/react": "^10.64.0",
-    "@supabase/supabase-js": "^2.110.8",
     "@tailwindcss/vite": "^4.3.2",
-    "@vercel/analytics": "^2.0.1",
     "@vitejs/plugin-react": "^5.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -32,6 +34,7 @@
     "workbox-window": "^7.4.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261008.1",
     "@eslint/js": "^10.0.1",
     "@sentry/vite-plugin": "^5.4.0",
     "@types/node": "^24.0.10",
@@ -45,6 +48,7 @@
     "papaparse": "^5.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.66.0",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.0.0"
   }
 }
