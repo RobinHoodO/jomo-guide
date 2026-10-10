@@ -121,7 +121,8 @@ function statementFor(query: Query): Statement {
   if (query.op === 'select') {
     const order = query.order ? ` order by t.${quote(query.order.col)} ${query.order.ascending === false ? 'desc' : 'asc'}` : '';
     const limit = query.limit ? ` limit ${query.limit}` : '';
-    return { text: `select coalesce(jsonb_agg(${rowJson(query.table, 't', query.select)}), '[]'::jsonb) as data from ${table} t${clause}${order}${limit}`, params };
+    // Order and limit must run before aggregation; Postgres rejects ORDER BY next to an aggregate.
+    return { text: `select coalesce(jsonb_agg(${rowJson(query.table, 't', query.select)}${order}), '[]'::jsonb) as data from (select * from ${table} t${clause}${order}${limit}) t`, params };
   }
   if (query.op !== 'delete' && (!query.values || Object.keys(query.values).length === 0)) bad('Invalid values');
   if ((query.op === 'insert' || query.op === 'upsert') && query.filters.length) bad('Filters are not supported for inserts');

@@ -44,6 +44,17 @@ neonDescribe('Worker API seam', () => {
     expect(body.data.display_name?.trim()).toBeTruthy();
   });
 
+  it('returns ordered, limited selects as rows instead of a SQL error', async () => {
+    const user = await session();
+    const response = await api('/api/q', authorized(user.token, {
+      table: 'missions', op: 'select', select: 'id,created_at', filters: [], order: { col: 'created_at', ascending: false }, limit: 2
+    }));
+    expect(response.status).toBe(200);
+    const rows = (await response.json() as { data: Array<{ created_at: string }> }).data;
+    expect(rows.length).toBeLessThanOrEqual(2);
+    expect([...rows].sort((a, b) => b.created_at.localeCompare(a.created_at))).toEqual(rows);
+  });
+
   it('keeps a non-owner from changing or deleting a mission', async () => {
     const owner = await session();
     const other = await session();
