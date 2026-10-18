@@ -11,6 +11,10 @@ export async function fetch(request: Request, env: Env): Promise<Response> {
     try {
       const session = await verifySession(env, bearer(request));
       if (session) return json({ token: bearer(request), user_id: session.sub, expires_at: new Date(session.exp * 1000).toISOString() });
+      if (env.SESSION_LIMITER) {
+        const { success } = await env.SESSION_LIMITER.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' });
+        if (!success) return error('Too many sessions, try again in a minute', 429);
+      }
       return json(await createAnonymousSession(env));
     } catch (cause) {
       return postgresError(cause);

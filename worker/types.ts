@@ -2,6 +2,8 @@ export interface Env {
   DATABASE_URL: string;
   SESSION_SECRET: string;
   ASSETS: Fetcher;
+  /** Per-IP limiter for anonymous session creation (wrangler `ratelimits`). Optional so tests and local dev run without it. */
+  SESSION_LIMITER?: RateLimit;
 }
 
 export type ApiError = { message: string; code?: string };
@@ -17,8 +19,13 @@ export function error(message: string, status = 400, code?: string) {
 export function postgresError(cause: unknown) {
   const value = cause && typeof cause === 'object' ? cause as { message?: unknown; code?: unknown } : {};
   const code = typeof value.code === 'string' ? value.code : undefined;
-  const message = typeof value.message === 'string' ? value.message : 'Database request failed';
-  return error(code === '42501' ? 'not authorized' : message, code === '42501' ? 403 : 400, code);
+  if (code === '42501') return error('not authorized', 403, code);
+  // Only errors our own SQL raises (P0001 raise, 23xxx constraints) are safe to show; anything else may leak internals.
+  if (code && /^(P0001|23\d{3})$/.test(code) && typeof value.message === 'string') return error(value.message, 400, code);
+  console.error('database request failed', { code, message: typeof value.message === 'string' ? value.message : undefined });
+  // 22xxx = bad input value (e.g. malformed uuid): the caller's fault, but the message stays generic.
+  if (code && /^22\d{3}$/.test(code)) return error('Invalid request', 400, code);
+  return error('Database request failed', 500);
 }
 
 export async function requestJson(request: Request): Promise<unknown> {
