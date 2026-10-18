@@ -87,6 +87,13 @@ describe('postgres error handling', () => {
     expect(body.error).toEqual({ message: 'mission is full', code });
   });
 
+  it('maps 22xxx input errors to a generic 400 and never logs the rejected input', async () => {
+    const { response, body } = await failWith({ message: 'invalid input syntax for type uuid: "SECRET-INPUT"', code: '22P02' });
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe('Invalid request');
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('SECRET-INPUT');
+  });
+
   it('maps 42501 to 403 not authorized', async () => {
     const { response, body } = await failWith({ message: 'permission denied for table x', code: '42501' });
     expect(response.status).toBe(403);

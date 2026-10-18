@@ -22,9 +22,12 @@ export function postgresError(cause: unknown) {
   if (code === '42501') return error('not authorized', 403, code);
   // Only errors our own SQL raises (P0001 raise, 23xxx constraints) are safe to show; anything else may leak internals.
   if (code && /^(P0001|23\d{3})$/.test(code) && typeof value.message === 'string') return error(value.message, 400, code);
+  // 22xxx = bad input value (e.g. malformed uuid): the caller's fault. Its message echoes the rejected input, so log the code only.
+  if (code && /^22\d{3}$/.test(code)) {
+    console.error('database request failed', { code });
+    return error('Invalid request', 400, code);
+  }
   console.error('database request failed', { code, message: typeof value.message === 'string' ? value.message : undefined });
-  // 22xxx = bad input value (e.g. malformed uuid): the caller's fault, but the message stays generic.
-  if (code && /^22\d{3}$/.test(code)) return error('Invalid request', 400, code);
   return error('Database request failed', 500);
 }
 
