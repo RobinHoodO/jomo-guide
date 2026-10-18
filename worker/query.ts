@@ -147,7 +147,8 @@ function statementFor(query: Query): Statement {
 export async function handleQuery(env: Env, uid: string, body: unknown) {
   const query = queryFrom(body);
   const rows = await runAs(env, uid, statementFor(query));
-  const data = query.select ? (rows[0]?.data ?? []) : null;
+  if (!query.select) return { data: null };
+  const data = rows[0]?.data ?? [];
   if (query.single === 'single' && (!Array.isArray(data) || data.length !== 1)) return { error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' }, status: 406 };
   if (query.single === 'maybeSingle' && Array.isArray(data) && data.length > 1) return { error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' }, status: 406 };
   if (query.single === 'maybeSingle') return { data: Array.isArray(data) ? (data[0] ?? null) : null };
